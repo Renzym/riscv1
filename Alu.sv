@@ -6,15 +6,27 @@ module Alu #(
     input  logic [DATA_WIDTH-1:0]   AluOp1,
     input  logic [DATA_WIDTH-1:0]   AluOp2,
     output logic [DATA_WIDTH-1:0]   AluOut,
-    input  logic [INSTR_WIDTH-1:0]  Instr       // AluSel in diagram, rethink later
+    input  logic [INSTR_WIDTH-1:0]  Instr,       // AluSel in diagram, rethink later
+    output logic                    BrTaken
 )
     InstructionT InstrT = InstructionT'(Instr);
-    //----------------------------------------------------------------------------------
-    // Adder/Subtractor
     logic Subtract; // TODO: Branch cases
     logic Overflow;
     logic [DATA_WIDTH-1:0] AddrOp2;
     logic [DATA_WIDTH-1:0] AddrOut;
+
+    logic [4:0] Shamt;
+    logic [DATA_WIDTH-1:0] ShiftOut;
+
+    logic [DATA_WIDTH-1:0] LogicOut;
+    logic [DATA_WIDTH-1:0] AndOut;
+    logic [DATA_WIDTH-1:0] OrOut ;
+    logic [DATA_WIDTH-1:0] XorOut;
+
+    logic IsZero    ;
+    logic IsNegative;
+    //----------------------------------------------------------------------------------
+    // Adder/Subtractor
     assign AddrOp2 = {DATA_WIDTH{Subtract}} ^ AluOp2;
     assign {Overflow, AddrOut} = AluOp1 + AddrOp2 + Subtract;
 
@@ -22,10 +34,7 @@ module Alu #(
                        InstrT.RType.Funct3 == F3_ADD_SUB && 
                        InstrT.RType.Funct7 == F7_ALT);
     //----------------------------------------------------------------------------------
-    // Shifter
-    logic [4:0] Shamt;
-    logic [DATA_WIDTH-1:0] ShiftOut;
-    
+    // Shifter    
     always_comb begin
         // TODO: I think we can probably use AluOp2's LSBs instead of determining here, Rethink
         // Shamt = '0;
@@ -42,10 +51,6 @@ module Alu #(
 
     //----------------------------------------------------------------------------------
     // Logical Operations
-    logic [DATA_WIDTH-1:0] LogicOut;
-    logic [DATA_WIDTH-1:0] AndOut;
-    logic [DATA_WIDTH-1:0] OrOut ;
-    logic [DATA_WIDTH-1:0] XorOut;
     assign AndOut = AluOp1 & AluOp2;
     assign OrOut  = AluOp1 | AluOp2;
     assign XorOut = AluOp1 ^ AluOp2;
@@ -75,6 +80,5 @@ module Alu #(
                         ((InstrT.BType.Funct3 == F3_BLT)  &  IsNegative) |   // BLT
                         ((InstrT.BType.Funct3 == F3_BGE)  & ~IsNegative) |   // BGE
                         ((InstrT.BType.Funct3 == F3_BLTU) &  IsNegative) |   // BLTU TODO: Evaluate unsigned case again when fresh
-                        ((InstrT.BType.Funct3 == F3_BGEU) & ~IsNegative) |   // BGEU TODO: Evaluate unsigned case again when fresh
-   
+                        ((InstrT.BType.Funct3 == F3_BGEU) & ~IsNegative) |   // BGEU TODO: Evaluate unsigned case again when fresh   
 endmodule

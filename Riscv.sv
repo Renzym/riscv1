@@ -82,7 +82,9 @@ module Riscv (
         .AluOp1          ,
         .AluOp2          ,
         .AluOut          ,
-        .Instr           
+        .Instr           ,
+        .BrTaken         
+
     )
 
     // Data memory
