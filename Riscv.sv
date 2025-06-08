@@ -30,6 +30,9 @@ module Riscv (
     logic [1:0]             RegWb;
     logic [DATA_WIDTH-1:0]  RegWrData;
     logic [DATA_WIDTH-1:0]  RegWrImm;
+    logic                   DmemWr;
+    logic                   RegWrEn;
+    logic                   BrTaken; // TODO
 
     // Program Counter
     always_ff @(posedge clk) begin
@@ -67,7 +70,7 @@ module Riscv (
     .RdData2    (RegSrc2                       ),
     .WrAddr     (Instr[DST_MSB-:REGADDR_WIDTH] ),
     .WrData     (RegWrData                     ),
-    .WrEn       
+    .WrEn       (RegWrEn)
     )
     // ALU
     assign AluOp1 = AuipcSel ? Pc     : RegSrc1;
@@ -108,5 +111,14 @@ module Riscv (
     end
 
     // Control logic (Putting here instead of new module as it would change with pipelined implementation)
-    
+    InstructionT InstrT = InstructionT'(Instr);
+    assign Op2Sel   = ~(InstrT.GetOpcode() == OP_MATH  | InstrT.GetOpcode() == OP_BRANCH);
+    assign DmemWr   =   InstrT.GetOpcode() == OP_STORE;
+    assign RegWrEn  = ~(InstrT.GetOpcode() == OP_STORE | InstrT.GetOpcode() == OP_BRANCH);
+    assign RegWb    =  (InstrT.GetOpcode() == OP_MATH  | InstrT.GetOpcode() == OP_MATH_IMM | InstrT.GetOpcode() == OP_AUIPC) ? SEL_REG_WB_ALU :
+                      ((InstrT.GetOpcode() == OP_LOAD) ? SEL_REG_WB_DMEM : 
+                       (InstrT.GetOpcode() == OP_LUI ? SEL_REG_WB_IMM : SEL_REG_WB_PC)); 
+    assign AuipcSel = InstrT.GetOpcode() == OP_AUIPC;
+    assign BrPcSel  = InstrT.GetOpcode() == OP_JAL | ((InstrT.GetOpcode() == OP_BRANCH) & BrTaken);
+    assign JalPcSel = InstrT.GetOpcode() == OP_JALR;
 endmodule
