@@ -1,3 +1,4 @@
+import Rv32iPkg::*;
 module Riscv (
     input  logic                  Clk,
     input  logic                  Reset
@@ -107,5 +108,5 @@ module Riscv (
     end
 
     // Control logic (Putting here instead of new module as it would change with pipelined implementation)
-
+    
 endmodule

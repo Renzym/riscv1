@@ -9,7 +9,7 @@ module Alu #(
     input  logic [INSTR_WIDTH-1:0]  Instr       // AluSel in diagram, rethink later
 )
     InstructionT InstrT = InstructionT'(Instr);
-
+    //----------------------------------------------------------------------------------
     // Adder/Subtractor
     logic Subtract;
     logic Overflow;
@@ -21,23 +21,17 @@ module Alu #(
     assign Subtract = (InstrT.GetOpcode() == OP_MATH && 
                       InstrT.RType.Funct3 == F3_ADD_SUB && 
                       InstrT.RType.Funct7 == F7_ALT);
+    //----------------------------------------------------------------------------------
     // Shifter
     logic [4:0] Shamt;
     logic [DATA_WIDTH-1:0] ShiftOut;
     
     always_comb begin
-        // Default shamt
-        Shamt = '0;
-        
-        // Select shamt source
-        if (InstrT.GetOpcode() == OP_MATH) begin
-            Shamt = AluOp2[4:0];  // R-type shifts
-        end
-        else if (InstrT.GetOpcode() == OP_MATH_IMM) begin
-            Shamt = InstrT.IType.Imm[4:0];  // I-type shifts
-        end
-        
-        // Perform shift operation
+        // TODO: I think we can probably use AluOp2's LSBs instead of determining here, Rethink
+        // Shamt = '0;
+        // if      (InstrT.GetOpcode() == OP_MATH)     Shamt = AluOp2[4:0];            // R-type shifts
+        // else if (InstrT.GetOpcode() == OP_MATH_IMM) Shamt = InstrT.IType.Imm[4:0];  // I-type shifts
+        Shamt = AluOp2[4:0];
         case (InstrT.RType.Funct3)
             F3_SLL:  ShiftOut = AluOp1 << Shamt;
             F3_SRL:  ShiftOut = AluOp1 >> Shamt;
@@ -46,6 +40,7 @@ module Alu #(
         endcase
     end
 
+    //----------------------------------------------------------------------------------
     // Logical Operations
     logic [DATA_WIDTH-1:0] LogicOut;
     logic [DATA_WIDTH-1:0] AndOut;
@@ -62,19 +57,14 @@ module Alu #(
         F3_XOR: LogicOut = XorOut;
         endcase
     end
-
-     always_comb begin
-        case (InstrT.GetOpcode())
-            OP_MATH, OP_MATH_IMM: begin
-                case (instr.RType.Funct3)
-                    F3_ADD_SUB:             AluOut = AddrOut;
-                    F3_SLL, F3_SRL, F3_SRA: AluOut = ShiftOut;
-                    F3_AND, F3_OR, F3_XOR:  AluOut = LogicOut;
-                    F3_SLT, F3_SLTU:        AluOut = '0;
-                endcase
-            end
-            // Add other opcode cases as needed
-            default: ; // No operation
+    //----------------------------------------------------------------------------------
+    // Mux to select between Arithmetic, Shift and Logic Units
+    always_comb begin
+        AluOut = '0;
+        case (instr.RType.Funct3)
+            F3_ADD_SUB:             AluOut = AddrOut;
+            F3_SLL, F3_SRL, F3_SRA: AluOut = ShiftOut;
+            F3_AND, F3_OR, F3_XOR:  AluOut = LogicOut;
         endcase
-    end   
+    end
 endmodule
