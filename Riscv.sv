@@ -9,6 +9,10 @@ module Riscv (
     localparam SRC2_MSB      = 24;
     localparam DST_MSB       = 11;
     localparam REGADDR_WIDTH = 5;
+    localparam SEL_REG_WB_ALU  = 0;
+    localparam SEL_REG_WB_DMEM = 1;
+    localparam SEL_REG_WB_PC   = 2;
+    localparam SEL_REG_WB_IMM  = 3;
 
     logic [PC_WIDTH-1:0]    Pc;
     logic [PC_WIDTH-1:0]    PcNxt;
@@ -21,7 +25,11 @@ module Riscv (
     logic [PC_WIDTH-1:0]    BrPcOff;   
     logic                   Op2Sel; // SrcSel in diagram
     logic                   AuipcSel;
-    
+    logic [DATA_WIDTH-1:0]  DmemDout;
+    logic [1:0]             RegWb;
+    logic [DATA_WIDTH-1:0]  RegWrData;
+    logic [DATA_WIDTH-1:0]  RegWrImm;
+
     // Program Counter
     always_ff @(posedge clk) begin
         if(Reset)   Pc <= 0;
@@ -57,7 +65,7 @@ module Riscv (
     .RdData1    (RegSrc1                       ),
     .RdData2    (RegSrc2                       ),
     .WrAddr     (Instr[DST_MSB-:REGADDR_WIDTH] ),
-    .WrData     ,
+    .WrData     (RegWrData                     ),
     .WrEn       
     )
     // ALU
@@ -83,10 +91,21 @@ module Riscv (
         .INIT_END_ADDR	 (10               )
     ) DataMemInst (
         .Clk,
-        .WrEn,
-        .Addr,
-        .WrData,
-        .RdData
+        .WrEn            (DmemWr          ),
+        .Addr            (AluOut          ),
+        .WrData          (RegSrc2         ),
+        .RdData          (DmemDout        )
     );
+    // Write back Mux
+    always_comb begin
+        unique case(RegWb)
+        SEL_REG_WB_ALU:  RegWrData = AluOut;
+        SEL_REG_WB_DMEM: RegWrData = DmemDout;
+        SEL_REG_WB_PC:   RegWrData = Pc;
+        SEL_REG_WB_IMM:  RegWrData = RegWrImm;
+        endcase
+    end
+
+    // Control logic (Putting here instead of new module as it would change with pipelined implementation)
 
 endmodule
