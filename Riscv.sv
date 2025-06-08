@@ -2,21 +2,26 @@ module Riscv (
     input  logic                  Clk,
     input  logic                  Reset
 )
-    localparam PC_WIDTH     = 32;
-    localparam INSTR_WIDTH  = 32;
-    localparam DATA_WIDTH   = 32;
-    localparam SRC1_MSB     = 19;
-    localparam SRC2_MSB     = 24;
-    localparam DST_MSB      = 11;
+    localparam PC_WIDTH      = 32;
+    localparam INSTR_WIDTH   = 32;
+    localparam DATA_WIDTH    = 32;
+    localparam SRC1_MSB      = 19;
+    localparam SRC2_MSB      = 24;
+    localparam DST_MSB       = 11;
     localparam REGADDR_WIDTH = 5;
+
     logic [PC_WIDTH-1:0]    Pc;
     logic [PC_WIDTH-1:0]    PcNxt;
     logic [INSTR_WIDTH-1:0] Instr;
     logic                   JalPcSel;
     logic                   BrPcSel;
+    logic [DATA_WIDTH:0]    Src1;
+    logic [DATA_WIDTH:0]    Src2;
     logic [DATA_WIDTH:0]    AluOut;
     logic [PC_WIDTH-1:0]    BrPcOff;   
-
+    logic                   Op2Sel; // SrcSel in diagram
+    logic                   AuipcSel;
+    
     // Program Counter
     always_ff @(posedge clk) begin
         if(Reset)   Pc <= 0;
@@ -32,9 +37,7 @@ module Riscv (
         .DATA_FILE 		 ("Program.hex"    ),
         .INIT_START_ADDR (0                ),
         .INIT_END_ADDR	 (10               )
-    )
-    ProgMemInst
-    (
+    ) ProgMemInst (
         .Clk    ,
         .WrEn   ('0     ),
         .Addr   (Pc     ),
@@ -46,20 +49,29 @@ module Riscv (
     Regfile #(
     .ADDR_WIDTH(5),
     .DATA_WIDTH(32)
-    )
-    RegfileInst (
+    ) RegfileInst (
     .Clk        ,
     .Reset      ,
     .RdAddr1    (Instr[SRC1_MSB-:REGADDR_WIDTH]),
     .RdAddr2    (Instr[SRC2_MSB-:REGADDR_WIDTH]),
-    .RdData1    ,
-    .RdData2    ,
-    .WrAddr     (Instr[DST_MSB-:REGADDR_WIDTH]),
+    .RdData1    (RegSrc1                       ),
+    .RdData2    (RegSrc2                       ),
+    .WrAddr     (Instr[DST_MSB-:REGADDR_WIDTH] ),
     .WrData     ,
     .WrEn       
     )
-
     // ALU
+    assign AluOp1 = AuipcSel ? Pc     : RegSrc1;
+    assign AluOp2 = Op2Sel   ? ImmExt : RegSrc2;
+    Alu #(
+        .DATA_WIDTH   (DATA_WIDTH  ),
+        .INSTR_WIDTH  (INSTR_WIDTH )
+    ) AluInst (
+        .AluOp1          ,
+        .AluOp2          ,
+        .AluOut          ,
+        .Instr           
+    )
 
     // Data memory
     RamSp
@@ -69,9 +81,7 @@ module Riscv (
         .DATA_FILE 		 ("Data.hex"       ),
         .INIT_START_ADDR (0                ),
         .INIT_END_ADDR	 (10               )
-    )
-    DataMemInst
-    (
+    ) DataMemInst (
         .Clk,
         .WrEn,
         .Addr,
