@@ -104,7 +104,7 @@ module Riscv (
     always_comb begin
         unique case(RegWb)
         SEL_REG_WB_ALU:  RegWrData = AluOut;
-        SEL_REG_WB_DMEM: RegWrData = DmemDout;
+        SEL_REG_WB_DMEM: RegWrData = DmemDout; // TODO: Handle byte and half word cases
         SEL_REG_WB_PC:   RegWrData = Pc;
         SEL_REG_WB_IMM:  RegWrData = RegWrImm;
         endcase
@@ -118,7 +118,7 @@ module Riscv (
     assign RegWb    =  (InstrT.GetOpcode() == OP_MATH  | InstrT.GetOpcode() == OP_MATH_IMM | InstrT.GetOpcode() == OP_AUIPC) ? SEL_REG_WB_ALU :
                       ((InstrT.GetOpcode() == OP_LOAD) ? SEL_REG_WB_DMEM : 
                        (InstrT.GetOpcode() == OP_LUI ? SEL_REG_WB_IMM : SEL_REG_WB_PC)); 
-    assign AuipcSel = InstrT.GetOpcode() == OP_AUIPC;
-    assign BrPcSel  = InstrT.GetOpcode() == OP_JAL | ((InstrT.GetOpcode() == OP_BRANCH) & BrTaken);
-    assign JalPcSel = InstrT.GetOpcode() == OP_JALR;
+    assign AuipcSel =   InstrT.GetOpcode() == OP_AUIPC;
+    assign BrPcSel  =   InstrT.GetOpcode() == OP_JAL   | ((InstrT.GetOpcode() == OP_BRANCH) & BrTaken);
+    assign JalPcSel =   InstrT.GetOpcode() == OP_JALR;
 endmodule

@@ -11,7 +11,7 @@ module Alu #(
     InstructionT InstrT = InstructionT'(Instr);
     //----------------------------------------------------------------------------------
     // Adder/Subtractor
-    logic Subtract;
+    logic Subtract; // TODO: Branch cases
     logic Overflow;
     logic [DATA_WIDTH-1:0] AddrOp2;
     logic [DATA_WIDTH-1:0] AddrOut;
@@ -19,8 +19,8 @@ module Alu #(
     assign {Overflow, AddrOut} = AluOp1 + AddrOp2 + Subtract;
 
     assign Subtract = (InstrT.GetOpcode() == OP_MATH && 
-                      InstrT.RType.Funct3 == F3_ADD_SUB && 
-                      InstrT.RType.Funct7 == F7_ALT);
+                       InstrT.RType.Funct3 == F3_ADD_SUB && 
+                       InstrT.RType.Funct7 == F7_ALT);
     //----------------------------------------------------------------------------------
     // Shifter
     logic [4:0] Shamt;
@@ -61,10 +61,20 @@ module Alu #(
     // Mux to select between Arithmetic, Shift and Logic Units
     always_comb begin
         AluOut = '0;
-        case (instr.RType.Funct3)
+        case (InstrT.RType.Funct3)
             F3_ADD_SUB:             AluOut = AddrOut;
             F3_SLL, F3_SRL, F3_SRA: AluOut = ShiftOut;
             F3_AND, F3_OR, F3_XOR:  AluOut = LogicOut;
         endcase
     end
+    //----------------------------------------------------------------------------------
+    assign IsZero     = AluOut == '0;
+    assign IsNegative = AluOut[DATA_WIDTH-1];
+    assign BrTaken    = ((InstrT.BType.Funct3 == F3_BEQ)  &  IsZero) |       // BEQ
+                        ((InstrT.BType.Funct3 == F3_BNQ)  & ~IsZero) |       // BNE
+                        ((InstrT.BType.Funct3 == F3_BLT)  &  IsNegative) |   // BLT
+                        ((InstrT.BType.Funct3 == F3_BGE)  & ~IsNegative) |   // BGE
+                        ((InstrT.BType.Funct3 == F3_BLTU) &  IsNegative) |   // BLTU TODO: Evaluate unsigned case again when fresh
+                        ((InstrT.BType.Funct3 == F3_BGEU) & ~IsNegative) |   // BGEU TODO: Evaluate unsigned case again when fresh
+   
 endmodule
