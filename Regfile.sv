@@ -1,7 +1,6 @@
 module Regfile #(
-    param ADDR_WIDTH=5,
-    param DATA_WIDTH=32,
-    localparam REGFILE_DEPTH=2**ADDR_WIDTH
+    parameter ADDR_WIDTH=5,
+    parameter DATA_WIDTH=32
     ) (
     input  logic                  Clk,
     input  logic                  Reset,
@@ -12,8 +11,9 @@ module Regfile #(
     input  logic [ADDR_WIDTH-1:0] WrAddr,
     input  logic [DATA_WIDTH-1:0] WrData,
     input  logic                  WrEn
-)
+);
 
+    localparam REGFILE_DEPTH = 2**ADDR_WIDTH;
     logic [REGFILE_DEPTH-1:0][DATA_WIDTH-1:0] Regs;
     logic [REGFILE_DEPTH-1:0] WrDecVec;
 
@@ -27,7 +27,7 @@ module Regfile #(
     for(genvar i=1; i<REGFILE_DEPTH; i++) begin: GenRegs
         always_ff @(posedge Clk)
             if(Reset)           Regs[i] <= 0;
-            else if(WrDecVec)   Regs[i] <= WrData;
+            else if(WrDecVec[i])   Regs[i] <= WrData;
     end
 
     assign RdData1 = Regs[RdAddr1];
