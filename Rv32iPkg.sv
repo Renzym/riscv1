@@ -15,33 +15,27 @@ package Rv32iPkg;
         OP_FENCE     = 7'b0001111
     } OpcodeE;
 
-    // Function3 field encodings (enum values in ALL_CAPS)
-    typedef enum logic [2:0] {
-        // Arithmetic
-        F3_ADD_SUB  = 3'b000,
-        F3_SLL      = 3'b001,
-        F3_SLT      = 3'b010,
-        F3_SLTU     = 3'b011,
-        F3_XOR      = 3'b100,
-        F3_SR       = 3'b101,  // SRL/SRA
-        F3_OR       = 3'b110,
-        F3_AND      = 3'b111,
-        
-        // Branches
-        F3_BEQ      = 3'b000,
-        F3_BNE      = 3'b001,
-        F3_BLT      = 3'b100,
-        F3_BGE      = 3'b101,
-        F3_BLTU     = 3'b110,
-        F3_BGEU     = 3'b111,
-        
-        // Load/Store
-        F3_LB_SB    = 3'b000,
-        F3_LH_SH    = 3'b001,
-        F3_LW_SW    = 3'b010,
-        F3_LBU      = 3'b100,
-        F3_LHU      = 3'b101
-    } Funct3E;
+    // Function3 field encodings (constants; values overlap across instruction classes)
+    typedef logic [2:0] Funct3T;
+    localparam Funct3T F3_ADD_SUB = 3'b000;
+    localparam Funct3T F3_SLL     = 3'b001;
+    localparam Funct3T F3_SLT     = 3'b010;
+    localparam Funct3T F3_SLTU    = 3'b011;
+    localparam Funct3T F3_XOR     = 3'b100;
+    localparam Funct3T F3_SR      = 3'b101;  // SRL/SRA
+    localparam Funct3T F3_OR      = 3'b110;
+    localparam Funct3T F3_AND     = 3'b111;
+    localparam Funct3T F3_BEQ     = 3'b000;
+    localparam Funct3T F3_BNE     = 3'b001;
+    localparam Funct3T F3_BLT     = 3'b100;
+    localparam Funct3T F3_BGE     = 3'b101;
+    localparam Funct3T F3_BLTU    = 3'b110;
+    localparam Funct3T F3_BGEU    = 3'b111;
+    localparam Funct3T F3_LB_SB   = 3'b000;
+    localparam Funct3T F3_LH_SH   = 3'b001;
+    localparam Funct3T F3_LW_SW   = 3'b010;
+    localparam Funct3T F3_LBU     = 3'b100;
+    localparam Funct3T F3_LHU     = 3'b101;
 
     // Function7 field encodings (enum values in ALL_CAPS)
     typedef enum logic [6:0] {
@@ -55,7 +49,7 @@ package Rv32iPkg;
         logic [6:0] Funct7;
         logic [4:0] Rs2;
         logic [4:0] Rs1;
-        Funct3E     Funct3;
+        Funct3T     Funct3;
         logic [4:0] Rd;
         OpcodeE     Opcode;
     } RTypeT;
@@ -64,7 +58,7 @@ package Rv32iPkg;
     typedef struct packed {
         logic [11:0] Imm;
         logic [4:0]  Rs1;
-        Funct3E      Funct3;
+        Funct3T      Funct3;
         logic [4:0]  Rd;
         OpcodeE      Opcode;
     } ITypeT;
@@ -74,7 +68,7 @@ package Rv32iPkg;
         logic [6:0] ImmHi;
         logic [4:0] Rs2;
         logic [4:0] Rs1;
-        Funct3E     Funct3;
+        Funct3T     Funct3;
         logic [4:0] ImmLo;
         OpcodeE     Opcode;
     } STypeT;
@@ -85,7 +79,7 @@ package Rv32iPkg;
         logic [5:0] ImmHi;
         logic [4:0] Rs2;
         logic [4:0] Rs1;
-        Funct3E     Funct3;
+        Funct3T     Funct3;
         logic [3:0] ImmLo;
         logic       Imm11;
         OpcodeE     Opcode;
@@ -117,37 +111,39 @@ package Rv32iPkg;
         BTypeT       BType;
         UTypeT       UType;
         JTypeT       JType;
-        
-        // Helper function to get opcode
-        function OpcodeE GetOpcode();
-            return OpcodeE'(Raw[6:0]);
-        endfunction
     } InstructionT;
 
+    // Helper function to get opcode from raw instruction bits
+    function automatic OpcodeE GetOpcode(logic [31:0] RawInstr);
+        GetOpcode = OpcodeE'(RawInstr[6:0]);
+    endfunction
+
     // Function to extract immediate value from instruction
-    function automatic logic [31:0] GetImmediate(InstructionT Instr);
-        unique case (Instr.GetOpcode())
+    function automatic logic [31:0] GetImmediate(logic [31:0] RawInstr);
+        InstructionT Instr;
+        Instr = InstructionT'(RawInstr);
+        case (GetOpcode(RawInstr))
             OP_LOAD, OP_MATH_IMM, OP_JALR:  // I-type
-                return {{20{Instr.IType.Imm[11]}}, Instr.IType.Imm};
+                GetImmediate = {{20{Instr.IType.Imm[11]}}, Instr.IType.Imm};
             
             OP_STORE:  // S-type
-                return {{20{Instr.SType.ImmHi[6]}}, Instr.SType.ImmHi, Instr.SType.ImmLo};
+                GetImmediate = {{20{Instr.SType.ImmHi[6]}}, Instr.SType.ImmHi, Instr.SType.ImmLo};
             
             OP_BRANCH:  // B-type
-                return {{19{Instr.BType.Imm12}}, Instr.BType.Imm12, 
-                        Instr.BType.Imm11, Instr.BType.ImmHi, 
-                        Instr.BType.ImmLo, 1'b0};
+                GetImmediate = {{19{Instr.BType.Imm12}}, Instr.BType.Imm12, 
+                                Instr.BType.Imm11, Instr.BType.ImmHi, 
+                                Instr.BType.ImmLo, 1'b0};
             
             OP_LUI, OP_AUIPC:  // U-type
-                return {Instr.UType.Imm, 12'b0};
+                GetImmediate = {Instr.UType.Imm, 12'b0};
             
             OP_JAL:  // J-type
-                return {{11{Instr.JType.Imm20}}, Instr.JType.Imm20,
-                        Instr.JType.ImmHi, Instr.JType.Imm11,
-                        Instr.JType.ImmLo, 1'b0};
+                GetImmediate = {{11{Instr.JType.Imm20}}, Instr.JType.Imm20,
+                                Instr.JType.ImmHi, Instr.JType.Imm11,
+                                Instr.JType.ImmLo, 1'b0};
             
             default:
-                return 32'b0;
+                GetImmediate = 32'b0;
         endcase
     endfunction
 
