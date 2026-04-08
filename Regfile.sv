@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module Regfile #(
     parameter ADDR_WIDTH=5,
     parameter DATA_WIDTH=32

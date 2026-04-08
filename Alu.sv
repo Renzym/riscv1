@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 import Rv32iPkg::*;
 module Alu #(
     parameter DATA_WIDTH=32,

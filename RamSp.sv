@@ -1,6 +1,8 @@
 /*
     Generic flop based single port Ram with byte enables. Reads on same cycle
 */
+`timescale 1ns/1ps
+
 module RamSp
 	#(
 		parameter RAM_WIDTH 		= 32,

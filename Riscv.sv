@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 import Rv32iPkg::*;
 module Riscv (
     input  logic                  Clk,
@@ -17,6 +19,7 @@ module Riscv (
 
     logic [PC_WIDTH-1:0]    Pc;
     logic [PC_WIDTH-1:0]    PcNxt;
+    logic [PC_WIDTH-1:0]    PcPlus4;
     logic [INSTR_WIDTH-1:0] Instr;
     logic                   JalPcSel;
     logic                   BrPcSel;
@@ -45,6 +48,7 @@ module Riscv (
         else        Pc <= PcNxt;
     end
 
+    assign PcPlus4 = Pc + 32'd4;
     assign BrPcOff = ImmExt;
     assign PcNxt = JalPcSel ? AluOut : (Pc + (BrPcSel ? BrPcOff : 32'd4));
     // Program memory
@@ -54,7 +58,7 @@ module Riscv (
         .RAM_ADDR_BITS 	 (9                ),
         .DATA_FILE 		 ("Program.hex"    ),
         .INIT_START_ADDR (0                ),
-        .INIT_END_ADDR	 (10               )
+        .INIT_END_ADDR	 (255              )
     ) ProgMemInst (
         .Clk    (Clk            ),
         .WrEn   ('0             ),
@@ -99,7 +103,7 @@ module Riscv (
         .RAM_ADDR_BITS 	 (9                ),
         .DATA_FILE 		 ("Data.hex"       ),
         .INIT_START_ADDR (0                ),
-        .INIT_END_ADDR	 (10               )
+        .INIT_END_ADDR	 (255              )
     ) DataMemInst (
         .Clk             (Clk             ),
         .WrEn            (DmemWrEn        ),
@@ -112,7 +116,7 @@ module Riscv (
         unique case(RegWb)
         SEL_REG_WB_ALU:  RegWrData = AluOut;
         SEL_REG_WB_DMEM: RegWrData = DmemDout; // TODO: Handle byte and half word cases
-        SEL_REG_WB_PC:   RegWrData = Pc + 32'd4;
+        SEL_REG_WB_PC:   RegWrData = PcPlus4;
         SEL_REG_WB_IMM:  RegWrData = RegWrImm;
         default:         RegWrData = '0;
         endcase

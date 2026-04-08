@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 package Rv32iPkg;
 
     // Opcode definitions (enum values in ALL_CAPS)
@@ -139,8 +141,8 @@ package Rv32iPkg;
             
             OP_JAL:  // J-type
                 GetImmediate = {{11{Instr.JType.Imm20}}, Instr.JType.Imm20,
-                                Instr.JType.ImmHi, Instr.JType.Imm11,
-                                Instr.JType.ImmLo, 1'b0};
+                                Instr.JType.ImmLo, Instr.JType.Imm11,
+                                Instr.JType.ImmHi, 1'b0};
             
             default:
                 GetImmediate = 32'b0;
