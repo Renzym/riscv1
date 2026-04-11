@@ -41,6 +41,11 @@ module Riscv (
     logic [3:0]             DmemWrEn;
     logic                   BrTaken;
     InstructionT            InstrT;
+    logic [8:0]             DmemWordAddr;
+    logic [1:0]             DmemByteOff;
+    logic [DATA_WIDTH-1:0]  LoadWbData;
+    logic [3:0]             StoreWrEnMask;
+    logic [DATA_WIDTH-1:0]  DmemWrData;
 
     // Program Counter
     always_ff @(posedge Clk) begin
@@ -66,6 +71,8 @@ module Riscv (
         .WrData ('0             ),
         .RdData (Instr          )
     );
+
+    assign InstrT = InstructionT'(Instr);
 
     // Register file
     Regfile #(
@@ -96,6 +103,17 @@ module Riscv (
         .BrTaken         (BrTaken)
     );
 
+    always_comb begin
+        DmemWrData = RegSrc2;
+        if (GetOpcode(Instr) == OP_STORE) begin
+            unique case (InstrT.SType.Funct3)
+                F3_LB_SB: DmemWrData = {4{RegSrc2[7:0]}};
+                F3_LH_SH: DmemWrData = {2{RegSrc2[15:0]}};
+                default: ; // SW
+            endcase
+        end
+    end
+
     // Data memory
     RamSp
     #(
@@ -107,15 +125,65 @@ module Riscv (
     ) DataMemInst (
         .Clk             (Clk             ),
         .WrEn            (DmemWrEn        ),
-        .Addr            (AluOut[8:0]     ),
-        .WrData          (RegSrc2         ),
+        .Addr            (DmemWordAddr    ),
+        .WrData          (DmemWrData      ),
         .RdData          (DmemDout        )
     );
+
+    assign DmemWordAddr = AluOut[10:2];
+    assign DmemByteOff  = AluOut[1:0];
+
+    always_comb begin
+        if (GetOpcode(Instr) != OP_LOAD)
+            LoadWbData = DmemDout;
+        else unique case (InstrT.IType.Funct3)
+            F3_LW_SW:   LoadWbData = DmemDout;
+            F3_LB_SB:   unique case (DmemByteOff)
+                            2'b00: LoadWbData = {{24{DmemDout[7]}}, DmemDout[7:0]};
+                            2'b01: LoadWbData = {{24{DmemDout[15]}}, DmemDout[15:8]};
+                            2'b10: LoadWbData = {{24{DmemDout[23]}}, DmemDout[23:16]};
+                            2'b11: LoadWbData = {{24{DmemDout[31]}}, DmemDout[31:24]};
+                        endcase
+            F3_LH_SH:   unique case (DmemByteOff[1])
+                            1'b0: LoadWbData = {{16{DmemDout[15]}}, DmemDout[15:0]};
+                            1'b1: LoadWbData = {{16{DmemDout[31]}}, DmemDout[31:16]};
+                        endcase
+            F3_LBU:     unique case (DmemByteOff)
+                            2'b00: LoadWbData = {24'b0, DmemDout[7:0]};
+                            2'b01: LoadWbData = {24'b0, DmemDout[15:8]};
+                            2'b10: LoadWbData = {24'b0, DmemDout[23:16]};
+                            2'b11: LoadWbData = {24'b0, DmemDout[31:24]};
+                        endcase
+            F3_LHU:     unique case (DmemByteOff[1])
+                            1'b0: LoadWbData = {16'b0, DmemDout[15:0]};
+                            1'b1: LoadWbData = {16'b0, DmemDout[31:16]};
+                        endcase
+            default:    LoadWbData = DmemDout;
+        endcase
+    end
+
+    always_comb begin
+        StoreWrEnMask = 4'b0000;
+        if (GetOpcode(Instr) == OP_STORE) begin
+            unique case (InstrT.SType.Funct3)
+                F3_LW_SW:   StoreWrEnMask = 4'b1111;
+                F3_LH_SH:   StoreWrEnMask = DmemByteOff[1] ? 4'b1100 : 4'b0011;
+                F3_LB_SB:   unique case (DmemByteOff)
+                                2'b00: StoreWrEnMask = 4'b0001;
+                                2'b01: StoreWrEnMask = 4'b0010;
+                                2'b10: StoreWrEnMask = 4'b0100;
+                                2'b11: StoreWrEnMask = 4'b1000;
+                            endcase
+                default:    StoreWrEnMask = 4'b0000;
+            endcase
+        end
+    end
+
     // Write back Mux
     always_comb begin
         unique case(RegWb)
         SEL_REG_WB_ALU:  RegWrData = AluOut;
-        SEL_REG_WB_DMEM: RegWrData = DmemDout; // TODO: Handle byte and half word cases
+        SEL_REG_WB_DMEM: RegWrData = LoadWbData;
         SEL_REG_WB_PC:   RegWrData = PcPlus4;
         SEL_REG_WB_IMM:  RegWrData = RegWrImm;
         default:         RegWrData = '0;
@@ -123,12 +191,11 @@ module Riscv (
     end
 
     // Control logic (Putting here instead of new module as it would change with pipelined implementation)
-    assign InstrT = InstructionT'(Instr);
     assign ImmExt = GetImmediate(Instr);
     assign RegWrImm = ImmExt;
     assign Op2Sel   = ~(GetOpcode(Instr) == OP_MATH  | GetOpcode(Instr) == OP_BRANCH);
     assign DmemWr   =   GetOpcode(Instr) == OP_STORE;
-    assign DmemWrEn = {4{DmemWr}};
+    assign DmemWrEn = DmemWr ? StoreWrEnMask : 4'b0000;
     assign RegWrEn  = ~(GetOpcode(Instr) == OP_STORE | GetOpcode(Instr) == OP_BRANCH);
     assign RegWb    =  (GetOpcode(Instr) == OP_MATH  | GetOpcode(Instr) == OP_MATH_IMM | GetOpcode(Instr) == OP_AUIPC) ? SEL_REG_WB_ALU :
                       ((GetOpcode(Instr) == OP_LOAD) ? SEL_REG_WB_DMEM : 
