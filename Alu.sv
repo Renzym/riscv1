@@ -12,7 +12,8 @@ module Alu #(
     output logic                    BrTaken
 );
     InstructionT InstrT = InstructionT'(Instr);
-    logic Subtract; // TODO: Branch cases
+    // Subtract drives the adder for (rs1 - rs2) equality checks (BEQ/BNE) and R-type SUB/SLT/SLTU.
+    logic Subtract;
     logic Overflow;
     logic [DATA_WIDTH-1:0] AddrOp2;
     logic [DATA_WIDTH-1:0] AddrOut;
@@ -43,12 +44,8 @@ module Alu #(
                       ((GetOpcode(Instr) == OP_BRANCH) &&
                        (InstrT.BType.Funct3 == F3_BEQ || InstrT.BType.Funct3 == F3_BNE));
     //----------------------------------------------------------------------------------
-    // Shifter    
+    // Shifter (shamt = low 5 bits of rs2 for R-type shifts, of imm for I-type shifts; both on AluOp2)
     always_comb begin
-        // TODO: I think we can probably use AluOp2's LSBs instead of determining here, Rethink
-        // Shamt = '0;
-        // if      (InstrT.GetOpcode() == OP_MATH)     Shamt = AluOp2[4:0];            // R-type shifts
-        // else if (InstrT.GetOpcode() == OP_MATH_IMM) Shamt = InstrT.IType.Imm[4:0];  // I-type shifts
         Shamt = AluOp2[4:0];
         case (InstrT.RType.Funct3)
             F3_SLL:  ShiftOut = AluOp1 << Shamt;
