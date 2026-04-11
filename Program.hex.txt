@@ -1,0 +1,30 @@
+Program.hex — test ROM for tb_riscv.sv
+=====================================
+
+Data memory uses word-aligned byte addresses: the RAM word index is AluOut[10:2]
+and the byte lane is AluOut[1:0]. So LW/SW at offset 0x40 touch word index 16
+(bytes 0x40–0x43), matching the old smoke test after the memory addressing fix.
+
+Section A (PC 0x00–0x28): original Stage-1 smoke — ADDI/ADD, SW/LW at 0x40, BEQ
+skip, AUIPC, JAL skip, LUI. x5 stays 0 if control flow is correct.
+
+Section B (0x2c): JAL x9,+8 saves x9=0x30 and jumps to 0x34 (extended tests).
+
+Section C (0x34+): SB/LB/LBU at base 0x50 — stores 0xAB, 0xCD, then -128 in the
+third byte; checks zero/sign extension.
+
+Section D: SH/LH/LHU at 0x60 — halfword 0xBEE0. Built as lui x20,0xC (0xC000) then
+addi with imm 0xEE0 (12-bit signed = −288); 0xC000−0x120 = 0xBEE0. A single lui+addi
+to 0xB000+0xEE0 is wrong because +0xEE0 does not fit as a positive 12-bit immediate.
+
+Section E: BLT/BGE with skipped ADDIs; x26 should finish as 100.
+
+Section F: SLLI (x27=16) and SUB x28=x25-x24 (1).
+
+Section G (0xac): JAL x0,0 — infinite loop so the bench can sample registers then
+$finish.
+
+S-type immediates must be split across inst[31:25] and inst[11:7]; a single wrong
+nibble (e.g. 0x00c58623 vs 0x00c58023) changes the effective address by bytes.
+
+If you change this image, update expected values in tb_riscv.sv accordingly.
