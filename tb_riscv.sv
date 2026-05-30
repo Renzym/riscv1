@@ -19,7 +19,7 @@ module tb_riscv;
         Reset = 1'b0;
 
         // Enough cycles for full Program.hex through JAL x0,0 (see Program.hex.txt).
-        repeat (150) @(posedge Clk);
+        repeat (300) @(posedge Clk);
 
         // Stage 1 smoke (Section A)
         if (dut.RegfileInst.Regs[1] !== 32'd5) begin
@@ -48,6 +48,9 @@ module tb_riscv;
         end
         if (dut.RegfileInst.Regs[9] !== 32'd48) begin
             $fatal(1, "x9 mismatch. JAL link expected 48, got %0d", dut.RegfileInst.Regs[9]);
+        end
+        if (dut.RegfileInst.Regs[10] !== 32'd20) begin
+            $fatal(1, "x10 mismatch. Full RV32I self-check expected 20 passes, got %0d", dut.RegfileInst.Regs[10]);
         end
 
         // Byte / halfword loads (Sections C–D)
@@ -84,7 +87,7 @@ module tb_riscv;
             $fatal(1, "x28 SUB mismatch. Expected 1, got %0d", dut.RegfileInst.Regs[28]);
         end
 
-        $display("PASS: Program.hex regression (smoke + load/store + branch + ALU).");
+        $display("PASS: Program.hex regression (RV32I except SYSTEM/CSR traps).");
         $finish;
     end
 endmodule

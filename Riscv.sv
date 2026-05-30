@@ -63,7 +63,7 @@ module Riscv (
         .RAM_ADDR_BITS 	 (9                ),
         .DATA_FILE 		 ("Program.hex"    ),
         .INIT_START_ADDR (0                ),
-        .INIT_END_ADDR	 (255              )
+        .INIT_END_ADDR	 (511              )
     ) ProgMemInst (
         .Clk    (Clk            ),
         .WrEn   ('0             ),

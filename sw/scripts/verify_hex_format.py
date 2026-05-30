@@ -1,38 +1,66 @@
 #!/usr/bin/env python3
-"""Verify elf2memh output matches repo Program.hex (offline, no GCC)."""
-import struct
+"""Verify the generated Program.hex format and, when available, build output."""
+from __future__ import annotations
+
+import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 GOLDEN = ROOT / "Program.hex"
-# (byte_addr, word) — 0x30 is intentionally omitted (JAL at 0x2c lands at 0x34)
-WORD_AT = [
-    (0x00, 0x00500093), (0x04, 0x00a00113), (0x08, 0x002081b3), (0x0c, 0x04302023),
-    (0x10, 0x04002203), (0x14, 0x00320463), (0x18, 0x00100293), (0x1c, 0x00000317),
-    (0x20, 0x008003ef), (0x24, 0x00200293), (0x28, 0x12345437), (0x2c, 0x008004ef),
-    (0x34, 0x050005b3), (0x38, 0x0ab00613), (0x3c, 0x0cd00693), (0x40, 0x00c58023),
-    (0x44, 0x00d580a3), (0x48, 0x0005c703), (0x4c, 0x0015c783), (0x50, 0x00158803),
-    (0x54, 0xf8000613), (0x58, 0x00c58123), (0x5c, 0x00258883), (0x60, 0x06000913),
-    (0x64, 0x0000ca37), (0x68, 0xee0a0a13), (0x6c, 0x01449023), (0x70, 0x00049a83),
-    (0x74, 0x0004db03), (0x78, 0x01449123), (0x7c, 0x00249b83), (0x80, 0x00000d13),
-    (0x84, 0x00100c13), (0x88, 0x00200c93), (0x8c, 0x01918463), (0x90, 0x00100d13),
-    (0x94, 0x01919463), (0x98, 0x00200d13), (0x9c, 0x06400d13), (0xa0, 0x00100d93),
-    (0xa4, 0x004d9d93), (0xa8, 0x418c8e33), (0xac, 0x0000006f),
-]
+GENERATED = ROOT / "sw" / "build" / "regression.hex"
 
-lines = []
-for addr, w in WORD_AT:
-    lines.append(f"@{addr:03x}")
-    lines.append(f"{w:08x}")
-gen = "\n".join(lines) + "\n"
-golden = GOLDEN.read_text()
-if gen == golden:
-    print("OK: generated hex matches Program.hex")
-else:
-    print("MISMATCH")
-    for i, (a, b) in enumerate(zip(gen.splitlines(), golden.splitlines())):
-        if a != b:
-            print(f"  line {i+1}: {a!r} vs {b!r}")
-            break
-    sys.exit(1)
+ADDR_RE = re.compile(r"^@[0-9a-fA-F]+$")
+WORD_RE = re.compile(r"^[0-9a-fA-F]{8}$")
+
+
+def normalize(path: Path) -> list[str]:
+    return [line.strip().lower() for line in path.read_text().splitlines() if line.strip()]
+
+
+def verify_format(lines: list[str]) -> None:
+    if len(lines) % 2:
+        raise ValueError("expected address/word line pairs")
+
+    last_addr = -1
+    for idx in range(0, len(lines), 2):
+        addr_line = lines[idx]
+        word_line = lines[idx + 1]
+        if not ADDR_RE.match(addr_line):
+            raise ValueError(f"line {idx + 1}: invalid address marker {addr_line!r}")
+        if not WORD_RE.match(word_line):
+            raise ValueError(f"line {idx + 2}: invalid 32-bit word {word_line!r}")
+
+        addr = int(addr_line[1:], 16)
+        if addr % 4:
+            raise ValueError(f"line {idx + 1}: address 0x{addr:x} is not word aligned")
+        if addr <= last_addr:
+            raise ValueError(f"line {idx + 1}: addresses must increase monotonically")
+        last_addr = addr
+
+
+def main() -> int:
+    golden = normalize(GOLDEN)
+    verify_format(golden)
+
+    if GENERATED.exists():
+        generated = normalize(GENERATED)
+        verify_format(generated)
+        if generated != golden:
+            print("MISMATCH: sw/build/regression.hex differs from Program.hex")
+            for i, (a, b) in enumerate(zip(generated, golden), start=1):
+                if a != b:
+                    print(f"  line {i}: generated {a!r} vs Program.hex {b!r}")
+                    break
+            else:
+                print(f"  line count differs: generated={len(generated)} Program.hex={len(golden)}")
+            return 1
+        print("OK: generated regression.hex matches Program.hex")
+    else:
+        print("OK: Program.hex format is valid (build/regression.hex not present)")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

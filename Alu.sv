@@ -11,7 +11,6 @@ module Alu #(
     input  logic [INSTR_WIDTH-1:0] Instr,
     output logic                   BrTaken
 );
-    InstructionT InstrT = InstructionT'(Instr);
     OpcodeE      Opc;
     Funct3T      Funct3;
     logic [6:0]  Funct7;
@@ -23,6 +22,7 @@ module Alu #(
 
     logic [4:0] Shamt;
     logic [DATA_WIDTH-1:0] ShiftOut;
+    logic signed [DATA_WIDTH-1:0] SignedAluOp1;
 
     logic [DATA_WIDTH-1:0] LogicOut;
     logic [DATA_WIDTH-1:0] AndOut;
@@ -53,9 +53,15 @@ module Alu #(
 
     always_comb begin
         Shamt = AluOp2[4:0];
+        SignedAluOp1 = AluOp1;
         unique case (Funct3)
             F3_SLL:  ShiftOut = AluOp1 << Shamt;
-            F3_SR:   ShiftOut = Funct7 == F7_ALT ? (AluOp1 >>> Shamt) : (AluOp1 >> Shamt);
+            F3_SR:   begin
+                if (Instr[30])
+                    ShiftOut = SignedAluOp1 >>> Shamt;
+                else
+                    ShiftOut = AluOp1 >> Shamt;
+            end
             default: ShiftOut = '0;
         endcase
     end
@@ -67,7 +73,7 @@ module Alu #(
     assign SltuOut = {{(DATA_WIDTH-1){1'b0}}, IsLessThanUnsigned};
 
     always_comb begin
-        unique case (InstrT.RType.Funct3)
+        unique case (Funct3)
             F3_AND:  LogicOut = AndOut;
             F3_OR:   LogicOut = OrOut;
             F3_XOR:  LogicOut = XorOut;

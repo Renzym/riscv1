@@ -5,12 +5,12 @@ OBJCOPY   := $(CROSS)-objcopy
 OBJDUMP   := $(CROSS)-objdump
 
 ARCH      := -march=rv32i -mabi=ilp32
-CFLAGS    := $(ARCH) -nostdlib -nostartfiles -ffreestanding -O2 -Wall
+CFLAGS    := $(ARCH) -nostdlib -nostartfiles -ffreestanding -fno-builtin -O2 -Wall
 LDFLAGS   := $(ARCH) -nostdlib -nostartfiles -T linker.ld -Wl,--gc-sections
 
 BUILD_DIR := build
 PROG      ?= regression
-ASM       := programs/$(PROG).S
+SRC       := $(firstword $(wildcard programs/$(PROG).S programs/$(PROG).c))
 ELF       := $(BUILD_DIR)/$(PROG).elf
 BIN       := $(BUILD_DIR)/$(PROG).bin
 HEX       := $(BUILD_DIR)/$(PROG).hex
@@ -26,9 +26,10 @@ check-toolchain:
 	  echo "Missing $(CC). In WSL run: sudo apt install gcc-riscv64-unknown-elf binutils-riscv64-unknown-elf"; \
 	  exit 1; }
 
-$(ELF): $(ASM) linker.ld | check-toolchain
+$(ELF): $(SRC) linker.ld | check-toolchain
+	@test -n "$(SRC)" || { echo "Missing programs/$(PROG).S or programs/$(PROG).c"; exit 1; }
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(ASM)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(SRC)
 
 $(BIN): $(ELF)
 	$(OBJCOPY) -O binary $< $@
