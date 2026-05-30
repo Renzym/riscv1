@@ -1,9 +1,9 @@
 `timescale 1ns/1ps
 
 module Regfile #(
-    parameter ADDR_WIDTH=5,
-    parameter DATA_WIDTH=32
-    ) (
+    parameter ADDR_WIDTH = 5,
+    parameter DATA_WIDTH = 32
+) (
     input  logic                  Clk,
     input  logic                  Reset,
     input  logic [ADDR_WIDTH-1:0] RdAddr1,
@@ -15,23 +15,24 @@ module Regfile #(
     input  logic                  WrEn
 );
 
-    localparam REGFILE_DEPTH = 2**ADDR_WIDTH;
-    logic [REGFILE_DEPTH-1:0][DATA_WIDTH-1:0] Regs;
+    localparam int REGFILE_DEPTH = 2**ADDR_WIDTH;
+    logic [DATA_WIDTH-1:0] Regs [REGFILE_DEPTH];
     logic [REGFILE_DEPTH-1:0] WrDecVec;
 
-    // Write demux
     always_comb begin
         WrDecVec = '0;
-        WrDecVec[WrAddr] = WrEn;        
+        WrDecVec[WrAddr] = WrEn;
     end
 
-    assign Regs[0] = '0;    // X0 always 0
-    for(genvar i=1; i<REGFILE_DEPTH; i++) begin: GenRegs
-        always_ff @(posedge Clk)
-            if(Reset)           Regs[i] <= 0;
-            else if(WrDecVec[i])   Regs[i] <= WrData;
-    end
+    assign RdData1 = (RdAddr1 == '0) ? '0 : Regs[RdAddr1];
+    assign RdData2 = (RdAddr2 == '0) ? '0 : Regs[RdAddr2];
 
-    assign RdData1 = Regs[RdAddr1];
-    assign RdData2 = Regs[RdAddr2];
+    for (genvar i = 1; i < REGFILE_DEPTH; i++) begin : GenRegs
+        always_ff @(posedge Clk) begin
+            if (Reset)
+                Regs[i] <= '0;
+            else if (WrDecVec[i])
+                Regs[i] <= WrData;
+        end
+    end
 endmodule

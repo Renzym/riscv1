@@ -18,13 +18,13 @@ module RamSp
     input 	logic	[RAM_WIDTH-1:0] 	WrData,
 	output  logic	[RAM_WIDTH-1:0] 	RdData
 	);
-   reg [RAM_WIDTH-1:0] RamArray [(2**RAM_ADDR_BITS)-1:0];
+   logic [RAM_WIDTH-1:0] RamArray [(2**RAM_ADDR_BITS)-1:0];
 
-
-   //  The forllowing code is only necessary if you wish to initialize the RAM 
-   //  contents via an external file (use $readmemb for binary data)
-   initial
+   initial begin
+      for (int i = 0; i < (2**RAM_ADDR_BITS); i++)
+         RamArray[i] = '0;
       $readmemh(DATA_FILE, RamArray, INIT_START_ADDR, INIT_END_ADDR);
+   end
 
     always_ff @(posedge Clk) begin
         for(int i=0; i<(RAM_WIDTH/8);i++) begin
