@@ -3,10 +3,6 @@
 This repo contains a single-cycle RV32I core with two simulation flows and a WSL
 software build path for generating `Program.hex`.
 
-All commands below are written relative to the repo root. If the repo is cloned
-elsewhere, start from that clone directory; no `E:\...` or `/mnt/e/...` path is
-required.
-
 | Flow | Tool | Top | Purpose |
 |------|------|-----|---------|
 | Fast lint/sim | Verilator in WSL | `tb_riscv.sv` | Quick regression |
