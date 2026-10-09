@@ -89,7 +89,7 @@ Covered RV32I instructions:
 - `ADDI`, `ADD`, `SUB`, `SLT`, `SLTU`, `SLTI`, `SLTIU`
 - `XOR`, `OR`, `AND`, `XORI`, `ORI`, `ANDI`
 - `SLL`, `SLLI`, `SRL`, `SRLI`, `SRA`, `SRAI`
-- `BEQ`, `BNE`, `BLT`, `BGE`, `BLTU`, `BGEU`, `JAL`, `JALR`
+- `BEQ`, `BNE`, `BLTU`, `BGEU`, `JAL`, `JALR`
 - `LB`, `LH`, `LW`, `LBU`, `LHU`, `SB`, `SH`, `SW`
 - `LUI`, `AUIPC`, `FENCE`
 
@@ -98,6 +98,14 @@ exception/CSR subsystem for those instructions.
 
 The added self-check section increments x10 once for each successful added
 instruction group check; x10 must finish as 20.
+
+Disassembly review for the learner guide found that Section E encodes BEQ/BNE,
+not BLT/BGE; its unconditional final x26 assignment masks branch errors. The
+byte-test setup word `050005b3` is invalid RV32I and produces base 0 in this
+core, not 0x50. Halfword accesses use x9 (0x30), not the initialized x18 (0x60).
+See [REGRESSION_TESTS.md](REGRESSION_TESTS.md) for the assembly walkthrough and
+coverage limitations. These findings update the documentation; the image and
+RTL have not been changed to repair those tests.
 
 ## Program.hex generation
 

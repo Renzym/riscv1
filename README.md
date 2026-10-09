@@ -10,10 +10,15 @@ software build path for generating `Program.hex`.
 
 ## Current test coverage
 
+See [Regression tests](REGRESSION_TESTS.md) for an assembly walkthrough of each
+test, hardware signal explanations, expected register values, pass criteria,
+run commands, and current coverage gaps.
+
 `Program.hex` is generated from `sw/programs/regression.S` by default. It is a
-targeted RV32I regression, not a full compliance suite, but it now exercises all
-base RV32I instruction groups implemented by this core except system/trap and
-CSR instructions.
+targeted RV32I regression, not a full compliance suite. It exercises the
+instruction groups below; signed `BLT`/`BGE`, system/trap, and CSR behavior
+are not covered. The walkthrough also explains an invalid setup encoding in
+the current byte test and a branch sequence whose final result masks errors.
 
 Covered instructions:
 
@@ -21,7 +26,7 @@ Covered instructions:
   `SLTIU`
 - Logic/immediates: `XOR`, `OR`, `AND`, `XORI`, `ORI`, `ANDI`
 - Shifts: `SLL`, `SLLI`, `SRL`, `SRLI`, `SRA`, `SRAI`
-- Control flow: `BEQ`, `BNE`, `BLT`, `BGE`, `BLTU`, `BGEU`, `JAL`, `JALR`
+- Control flow: `BEQ`, `BNE`, `BLTU`, `BGEU`, `JAL`, `JALR`
 - Memory: `LB`, `LH`, `LW`, `LBU`, `LHU`, `SB`, `SH`, `SW`
 - Upper/immediate and ordering: `LUI`, `AUIPC`, `FENCE`
 

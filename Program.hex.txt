@@ -20,15 +20,19 @@ BEQ skip, AUIPC, JAL skip, LUI. x5 stays 0 if control flow is correct.
 
 Section B (0x2c): JAL x9,+8 saves x9=0x30 and jumps to 0x34.
 
-Section C (0x34+): SB/LB/LBU at base 0x50 - stores 0xAB, 0xCD, then -128 in
+Section C (0x34+): SB/LB/LBU at base 0 - stores 0xAB, 0xCD, then -128 in
 the third byte; checks zero/sign extension.
+The setup word 050005b3 is invalid RV32I; this core treats it as addition of
+x0 and the still-zero x16, producing x11=0 rather than the intended 0x50.
 
-Section D: SH/LH/LHU at 0x60 - halfword 0xBEE0. Built as lui x20,0xC
+Section D: SH/LH/LHU at 0x30 (base x9) - halfword 0xBEE0. x18 is set to
+0x60 but is not used by these accesses. Built as lui x20,0xC
 (0xC000) then addi with imm 0xEE0 (12-bit signed = -288); 0xC000-0x120 =
 0xBEE0. A single lui+addi to 0xB000+0xEE0 is wrong because +0xEE0 does not fit
 as a positive 12-bit immediate.
 
-Section E: BLT/BGE with skipped ADDIs; x26 should finish as 100.
+Section E: BEQ/BNE (not BLT/BGE); x26 finishes as 100, but that final
+unconditional assignment masks incorrect earlier branch decisions.
 
 Section F: SLLI (x27=16) and SUB x28=x25-x24 (1).
 
@@ -36,7 +40,7 @@ Section G (0xac+): self-checks the remaining RV32I base instructions implemented
 by this core, excluding ECALL, EBREAK, and CSR/system behavior. It covers BNE,
 BLTU, BGEU, SLT, SLTU, SLTI, SLTIU, XOR, OR, AND, XORI, ORI, ANDI, SLL, SRL,
 SRA, SRLI, SRAI, JALR, and FENCE. x10 increments once per successful check and
-must finish as 20. Any failure loops at `fail` with x10 holding the number of
+must finish as 20. Any detected failure loops at `fail` with x10 holding the number of
 checks that passed before the first failure.
 
 Final section: JAL x0,0 infinite loop so the benches can sample registers then
@@ -47,3 +51,5 @@ wrong nibble changes the effective address by bytes.
 
 If you change this image, update expected values in `tb_riscv.sv` and
 `uvm_tb/riscv_pkg.sv`.
+
+See REGRESSION_TESTS.md for the complete assembly and hardware walkthrough.
