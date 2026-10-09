@@ -28,9 +28,14 @@ def main() -> int:
     ap.add_argument("input", type=Path, help="raw .bin or path from objcopy -O binary")
     ap.add_argument("-o", "--output", type=Path, required=True)
     ap.add_argument("--base-addr", type=int, default=0, help="byte address of first instruction word")
+    ap.add_argument("--words", type=int, help="RAM capacity in words; reject overflow and pad with zeros")
     args = ap.parse_args()
     data = args.input.read_bytes()
     out_lines = bin_to_memh(data, args.base_addr)
+    if args.words is not None:
+        if args.words < 1 or len(out_lines) > args.words:
+            ap.error("image exceeds configured RAM capacity")
+        out_lines += ["00000000"] * (args.words - len(out_lines))
     args.output.write_text("\n".join(out_lines) + "\n")
     return 0
 

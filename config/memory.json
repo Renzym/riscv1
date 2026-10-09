@@ -1,0 +1,5 @@
+{
+  "program_word_address_bits": 9,
+  "data_word_address_bits": 9,
+  "data_origin": 256
+}

@@ -6,9 +6,6 @@ import uvm_pkg::*;
 import riscv_pkg::*;
 
 `include "riscv_if.sv"
-`include "riscv_clock_driver.sv"
-`include "riscv_monitor.sv"
-`include "riscv_agent.sv"
 `include "riscv_scoreboard.sv"
 `include "riscv_env.sv"
 `include "riscv_base_test.sv"
@@ -17,15 +14,16 @@ import riscv_pkg::*;
 module tb_top_uvm;
     logic clk;
     logic reset;
+    logic fault;
 
     riscv_if riscv_vif(clk);
 
     Riscv dut (
         .Clk   (clk),
-        .Reset (reset)
+        .Reset (reset),
+        .Fault (fault)
     );
 
-    assign riscv_vif.reset = reset;
 
     genvar gi;
     generate
@@ -46,8 +44,10 @@ module tb_top_uvm;
 
         riscv_vif.reset = 1'b1;
         repeat (2) @(posedge clk);
-        riscv_vif.reset = 1'b0;
+        @(negedge clk) riscv_vif.reset = 1'b0;
         repeat (run_cycles) @(posedge clk);
+        @(negedge clk);
+        if (fault !== 0) $fatal(1, "Unexpected core fault");
         riscv_vif.stimulus_done = 1'b1;
     end
 

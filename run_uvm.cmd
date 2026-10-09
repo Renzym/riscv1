@@ -11,6 +11,8 @@ cd /d "%~dp0"
 echo Repo: %CD%
 echo Ensure Program.hex and Data.hex exist in repo root.
 echo Optional WSL build: wsl bash -lc "cd sw && make install-hex"
-"%VIVADO_BIN%" -mode batch -source sim/run_uvm.tcl
-echo Exit code: %ERRORLEVEL%
+call "%VIVADO_BIN%" -mode batch -source sim/run_uvm.tcl
+set RESULT=%ERRORLEVEL%
+echo Exit code: %RESULT%
 pause
+exit /b %RESULT%

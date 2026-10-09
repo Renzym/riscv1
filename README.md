@@ -15,10 +15,9 @@ test, hardware signal explanations, expected register values, pass criteria,
 run commands, and current coverage gaps.
 
 `Program.hex` is generated from `sw/programs/regression.S` by default. It is a
-targeted RV32I regression, not a full compliance suite. It exercises the
-instruction groups below; signed `BLT`/`BGE`, system/trap, and CSR behavior
-are not covered. The walkthrough also explains an invalid setup encoding in
-the current byte test and a branch sequence whose final result masks errors.
+targeted RV32I regression, not a full compliance suite. All instructions in the
+regression use mnemonics. Signed branches, memory preservation, shift boundaries,
+backward branches and x0 are checked explicitly.
 
 Covered instructions:
 
@@ -26,22 +25,24 @@ Covered instructions:
   `SLTIU`
 - Logic/immediates: `XOR`, `OR`, `AND`, `XORI`, `ORI`, `ANDI`
 - Shifts: `SLL`, `SLLI`, `SRL`, `SRLI`, `SRA`, `SRAI`
-- Control flow: `BEQ`, `BNE`, `BLTU`, `BGEU`, `JAL`, `JALR`
+- Control flow: `BEQ`, `BNE`, `BLT`, `BGE`, `BLTU`, `BGEU`, `JAL`, `JALR`
 - Memory: `LB`, `LH`, `LW`, `LBU`, `LHU`, `SB`, `SH`, `SW`
 - Upper/immediate and ordering: `LUI`, `AUIPC`, `FENCE`
 
 Not covered: `ECALL`, `EBREAK`, and CSR instructions. Those are intentionally
 excluded because this simple core has no exception/CSR subsystem.
 
-Both benches check the same 20 expected register values after 300 cycles. The
-new x10 check is a self-check pass counter for the added RV32I coverage; it must
-finish at 20.
+Both benches check the same 21 expected register values after 500 cycles, using
+one table in `uvm_tb/riscv_pkg.sv`. x10 is the self-check pass counter and must
+finish at 33. Additional benches check faults, memory boundaries, reset during
+execution, C startup, and four-state scoreboard behavior.
 
 ## How Program.hex Is Generated
 
 The Makefile builds a freestanding RV32I ELF with `riscv64-unknown-elf-gcc`,
-converts it to a raw binary with `objcopy`, then converts that binary to Vivado
-`$readmemh` format with `sw/scripts/elf2memh.py`.
+extracts instruction and initialized-data binaries with `objcopy`, then converts
+them to plain `$readmemh` words with `sw/scripts/elf2memh.py`. Images are padded
+to the configured RAM capacity; oversized images are rejected.
 
 The default program is assembly:
 
@@ -59,9 +60,9 @@ programs/regression.S -> build/regression.elf -> build/regression.bin
                       -> build/regression.hex -> ../Program.hex
 ```
 
-`make install-hex` also ensures `../Data.hex` exists. The verifier compares
+`make install-hex` also installs the matching `../Data.hex`. The verifier compares
 `sw/build/regression.hex` against the checked-in `Program.hex` when the build
-output is present, and always validates `Program.hex` formatting.
+output is present, and always validates both images' formatting and sizes.
 
 ## Generating Hex From C
 
@@ -73,8 +74,8 @@ cd sw
 make PROG=c_smoke
 ```
 
-This builds `sw/build/c_smoke.hex` from `sw/programs/c_smoke.c`. To install that
-image as the simulator ROM:
+This builds `sw/build/c_smoke.hex` and `sw/build/c_smoke.data.hex` from
+`sw/programs/c_smoke.c` and `sw/crt0.S`. To install that image pair:
 
 ```bash
 cd sw
@@ -85,9 +86,12 @@ Important: the default benches expect the register results produced by
 `regression.S`. If you install a different C-generated `Program.hex`, update the
 scoreboard expectations or run it with a matching test.
 
-The C flow is freestanding: no C runtime, no standard library startup, and no
-automatic data/BSS initialization code. C programs must provide `_start` and
-should avoid library calls unless you add runtime support.
+The C flow is freestanding and links a small startup routine: it sets the stack,
+clears BSS, calls `main`, and loops if `main` returns. `Data.hex` preloads initialized
+data and read-only constants into data RAM; no ROM-to-RAM copy is needed. C
+programs provide `main`; assembly programs provide `_start`. No standard library,
+heap, exception or interrupt support is supplied. Low data addresses are reserved
+for scratch/signatures; static C data begins at `0x100` by default.
 
 ## RISC-V Toolchain In WSL
 
@@ -123,8 +127,22 @@ defaulting to 9. Each memory therefore contains 512 words (2 KiB). RAM depth,
 initialization bounds, and address slices derive from these parameters. The
 PC remains 32 bits for RV32I. The old program RAM used byte indexing and wrapped
 at 512 bytes; word indexing now makes all 2 KiB usable. Addresses beyond the
-configured memory capacity still wrap. If memory sizes change, also update the
-corresponding regions in `sw/linker.ld`.
+configured memory capacity fault rather than wrap. Misaligned instruction
+targets and halfword/word data accesses also fault. The core halts and suppresses
+writes; normal simulation terminates with a diagnostic. This is a defined
+limitation, not an architectural exception/trap implementation.
+
+Edit `config/memory.json` to change memory defaults or the C data origin, then run:
+
+```bash
+python3 sw/scripts/generate_memory_config.py
+cd sw
+make install-hex
+```
+
+This generates `rtl/MemoryConfigPkg.sv`, `sw/linker.ld`, and `sw/memory_config.h`.
+Build and both simulation flows reject stale generated files. Per-instance RTL parameter
+overrides remain useful for directed tests; software images must fit that instance.
 
 ## UVM Testbench Layout
 
@@ -132,7 +150,6 @@ corresponding regions in `sw/linker.ld`.
 uvm_tb/
   riscv_pkg.sv             expected register map and default cycle count
   riscv_if.sv              clock/reset plus sampled registers
-  riscv_agent.sv           passive agent wrapper
   riscv_scoreboard.sv      register scoreboard
   riscv_env.sv             UVM environment
   riscv_base_test.sv       shared test setup
@@ -152,7 +169,7 @@ expected register map.
 Useful plusargs:
 
 - `+UVM_TESTNAME=riscv_regression_test`
-- `+RUN_CYCLES=400`
+- `+RUN_CYCLES=600`
 - `+UVM_VERBOSITY=UVM_MEDIUM`
 
 ## Run UVM On Windows
@@ -163,7 +180,7 @@ Useful plusargs:
 C:\Xilinx\Vivado\2021.2\bin\vivado.bat
 ```
 
-If your Vivado install is elsewhere, edit the `VIVADO_BAT` variable in
+If your Vivado install is elsewhere, edit the `VIVADO_BIN` variable in
 `run_uvm.cmd`.
 
 Run from the repo root:
@@ -192,12 +209,46 @@ From the repo root:
 ./sim_wsl.sh
 ```
 
+Additional checks, also from the repo root:
+
+```bash
+bash sim_wsl.sh tb_core_checks
+bash sim_wsl.sh tb_c_smoke
+bash sim_wsl.sh tb_fault_report
+python3 sw/scripts/test_memory_tools.py
+tclsh sim/test_sim_result.tcl
+```
+
+The C bench builds its own image pair without replacing the root regression
+images. To run directed checks and the X/Z scoreboard check in Vivado:
+
+```cmd
+vivado -mode batch -source sim\run_directed_checks.tcl
+```
+
+Build the C pair first with `cd sw && make PROG=c_smoke` in WSL. Vivado scripts
+require a completion marker and reject error/fatal reports; Windows launchers
+propagate failure status.
+
 ## Disk Cleanup
+
+Close the simulators, then run from PowerShell:
+
+```powershell
+.\cleanup_sim.ps1 -WhatIf  # preview the targets
+.\cleanup_sim.ps1          # remove simulator outputs
+```
+
+The script removes Verilator/Vivado output directories, `.Xil/`, and root Vivado
+logs/journals/backups. It works independently of the current working directory,
+skips absent outputs, and refuses symbolic links or junctions. Software builds
+are cleaned separately in WSL with `make -C sw clean`; root hex images are kept.
 
 The following outputs are generated and safe to delete after tools exit:
 
 - `sim/proj/`
 - `sim/proj_tb/`
+- `sim/proj_checks/`
 - `obj_dir/`
 - `obj_dir_wsl/`
 - `sw/build/`

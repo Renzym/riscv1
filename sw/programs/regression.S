@@ -1,51 +1,57 @@
-/* Golden regression image - instruction words match Program.hex (see Program.hex.txt). */
+/* Directed RV32I regression; see REGRESSION_TESTS.md for each check. */
     .section .text.init, "ax", @progbits
     .globl _start
     .option norvc
 _start:
-    .word 0x00500093
-    .word 0x00a00113
-    .word 0x002081b3
-    .word 0x04302023
-    .word 0x04002203
-    .word 0x00320463
-    .word 0x00100293
-    .word 0x00000317
-    .word 0x008003ef
-    .word 0x00200293
-    .word 0x12345437
-    .word 0x008004ef
+    /* A/B: arithmetic, word memory, BEQ/JAL skips and PC-relative results. */
+    addi x1, x0, 5
+    addi x2, x0, 10
+    add x3, x1, x2
+    sw x3, 64(x0)
+    lw x4, 64(x0)
+    beq x4, x3, 1f
+    addi x5, x0, 1
+1:  auipc x6, 0
+    jal x7, 1f
+    addi x5, x0, 2
+1:  lui x8, 0x12345
+    jal x9, byte_tests
     .org 0x34
-    .word 0x050005b3
-    .word 0x0ab00613
-    .word 0x0cd00693
-    .word 0x00c58023
-    .word 0x00d580a3
-    .word 0x0005c703
-    .word 0x0015c783
-    .word 0x00158803
-    .word 0xf8000613
-    .word 0x00c58123
-    .word 0x00258883
-    .word 0x06000913
-    .word 0x0000ca37
-    .word 0xee0a0a13
-    .word 0x01449023
-    .word 0x00049a83
-    .word 0x0004db03
-    .word 0x01449123
-    .word 0x00249b83
-    .word 0x00000d13
-    .word 0x00100c13
-    .word 0x00200c93
-    .word 0x01918463
-    .word 0x00100d13
-    .word 0x01919463
-    .word 0x00200d13
-    .word 0x06400d13
-    .word 0x00100d93
-    .word 0x004d9d93
-    .word 0x418c8e33
+byte_tests:
+    /* C: explicit byte base and signed/unsigned loads. */
+    addi x11, x0, 0x50
+    addi x12, x0, 0xab
+    addi x13, x0, 0xcd
+    sb x12, 0(x11)
+    sb x13, 1(x11)
+    lbu x14, 0(x11)
+    lbu x15, 1(x11)
+    lb x16, 1(x11)
+    addi x12, x0, -128
+    sb x12, 2(x11)
+    lb x17, 2(x11)
+    /* D: explicit halfword base, independent of JAL link register. */
+    addi x18, x0, 0x60
+    lui x20, 0xc
+    addi x20, x20, -288
+    sh x20, 0(x18)
+    lh x21, 0(x18)
+    lhu x22, 0(x18)
+    sh x20, 2(x18)
+    lh x23, 2(x18)
+    /* E: signed branch decisions cannot be masked by a later assignment. */
+    addi x26, x0, 0
+    addi x24, x0, 1
+    addi x25, x0, 2
+    blt x24, x25, 1f
+    jal x0, fail
+1:  bge x25, x24, 1f
+    jal x0, fail
+1:  addi x26, x0, 100
+    /* F: shift immediate and subtraction. */
+    addi x27, x0, 1
+    slli x27, x27, 4
+    sub x28, x25, x24
 
     /* Section G: remaining RV32I base instructions except SYSTEM/CSR traps. */
     addi x10, x0, 0
@@ -148,6 +154,7 @@ _start:
     /* JALR: verify both target and link register. */
 1:  auipc x11, %pcrel_hi(jalr_target)
     addi  x11, x11, %pcrel_lo(1b)
+    addi  x11, x11, 1 /* odd target: JALR must clear bit 0 */
     jalr  x12, 0(x11)
 jalr_link:
     jal   x0, fail
@@ -159,6 +166,67 @@ jalr_target:
 
     /* FENCE is architecturally a no-op for this simple core. */
     fence
+    addi x10, x10, 1
+
+    /* H, checks 21-23: all byte lanes and preservation after stores. */
+    addi x11, x0, 0x50
+    addi x12, x0, 0x7f
+    sb x12, 3(x11)
+    lbu x13, 3(x11)
+    bne x13, x12, fail
+    addi x10, x10, 1
+    lw x13, 0(x11)
+    lui x12, 0x7f80d
+    addi x12, x12, -597 /* 0x7f80cdab */
+    bne x13, x12, fail
+    addi x10, x10, 1
+    addi x11, x0, 0x60
+    lhu x13, 0(x11)
+    lui x12, 0xc
+    addi x12, x12, -288
+    bne x13, x12, fail
+    addi x10, x10, 1
+
+    /* Checks 24-27: signed extreme operands, taken and not-taken branches. */
+    lui x11, 0x80000 /* INT_MIN */
+    lui x12, 0x80000
+    addi x12, x12, -1 /* INT_MAX */
+    blt x11, x12, 1f
+    jal x0, fail
+1:  addi x10, x10, 1
+    blt x12, x11, fail
+    addi x10, x10, 1
+    bge x12, x11, 1f
+    jal x0, fail
+1:  addi x10, x10, 1
+    bge x11, x12, fail
+    addi x10, x10, 1
+
+    /* Checks 28-31: zero/31 shift amounts and rs2 high-bit masking. */
+    addi x11, x0, 1
+    slli x13, x11, 0
+    bne x13, x11, fail
+    addi x10, x10, 1
+    slli x13, x11, 31
+    lui x12, 0x80000
+    bne x13, x12, fail
+    addi x10, x10, 1
+    srli x13, x12, 31
+    bne x13, x11, fail
+    addi x10, x10, 1
+    addi x12, x0, 32
+    sll x13, x11, x12 /* low five bits = 0 */
+    bne x13, x11, fail
+    addi x10, x10, 1
+
+    /* Check 32: negative B-immediate and finite backward loop. */
+    addi x11, x0, 3
+1:  addi x11, x11, -1
+    bne x11, x0, 1b
+    addi x10, x10, 1
+    /* Check 33: x0 must ignore writes. */
+    addi x0, x0, 99
+    bne x0, x11, fail /* x11 is zero */
     addi x10, x10, 1
 
 done:

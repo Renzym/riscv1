@@ -18,6 +18,7 @@ module Regfile #(
     localparam int REGFILE_DEPTH = 2**ADDR_WIDTH;
     logic [DATA_WIDTH-1:0] Regs [REGFILE_DEPTH];
     logic [REGFILE_DEPTH-1:0] WrDecVec;
+    assign Regs[0] = '0;
 
     always_comb begin
         WrDecVec = '0;

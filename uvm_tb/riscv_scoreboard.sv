@@ -25,7 +25,7 @@ class riscv_scoreboard extends uvm_scoreboard;
 
     function void check_all();
         reg_expect_t exp;
-        bit [31:0] actual;
+        logic [31:0] actual;
         foreach (expects[i]) begin
             string rname;
             exp = expects[i];

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import json
 import sys
 from pathlib import Path
 
@@ -28,7 +29,13 @@ def verify_format(lines: list[str]) -> None:
 def main() -> int:
     golden = normalize(GOLDEN)
     verify_format(golden)
-    verify_format(normalize(ROOT / "Data.hex"))
+    data = normalize(ROOT / "Data.hex")
+    verify_format(data)
+    cfg = json.loads((ROOT / "config/memory.json").read_text())
+    if len(golden) != 1 << cfg['program_word_address_bits']:
+        raise ValueError("Program.hex must contain exactly the configured program RAM word count")
+    if len(data) != 1 << cfg['data_word_address_bits']:
+        raise ValueError("Data.hex must contain exactly the configured data RAM word count")
 
     if GENERATED.exists():
         generated = normalize(GENERATED)
@@ -43,6 +50,10 @@ def main() -> int:
                 print(f"  line count differs: generated={len(generated)} Program.hex={len(golden)}")
             return 1
         print("OK: generated regression.hex matches Program.hex")
+        generated_data = ROOT / 'sw/build/regression.data.hex'
+        if generated_data.exists() and normalize(generated_data) != data:
+            print("MISMATCH: regression.data.hex differs from Data.hex")
+            return 1
     else:
         print("OK: Program.hex format is valid (build/regression.hex not present)")
 

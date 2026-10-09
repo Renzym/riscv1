@@ -4,6 +4,9 @@
 # Optional: build Program.hex first in WSL: cd sw && make install-hex
 
 set repo_dir [file normalize [file join [file dirname [info script]] ..]]
+source [file join $repo_dir sim check_sim_result.tcl]
+source [file join $repo_dir sim check_memory_config.tcl]
+require_memory_config $repo_dir
 cd $repo_dir
 
 set part_name xc7a35tcpg236-1
@@ -33,7 +36,7 @@ set_property top tb_top_uvm [get_filesets sim_1]
 set_property top_lib xil_defaultlib [get_filesets sim_1]
 set_property -name {xsim.compile.xvlog.more_options} -value {-L uvm} -objects [get_filesets sim_1]
 set_property -name {xsim.elaborate.xelab.more_options} -value {-L uvm} -objects [get_filesets sim_1]
-set_property -name {xsim.simulate.runtime} -value {5us} -objects [get_filesets sim_1]
+set_property -name {xsim.simulate.runtime} -value {10us} -objects [get_filesets sim_1]
 set_property -name {xsim.simulate.log_all_signals} -value {false} -objects [get_filesets sim_1]
 
 update_compile_order -fileset sources_1
@@ -51,6 +54,11 @@ foreach mem_file {Program.hex Data.hex} {
     file copy -force $src [file join $xsim_dir $mem_file]
 }
 
-launch_simulation -simset sim_1
-close_sim -force
+set failed [catch {
+    launch_simulation -simset sim_1
+    close_sim -force
+    require_sim_pass [file join $xsim_dir simulate.log] "All expected registers matched"
+} message]
+catch {close_sim -force}
 close_project
+if {$failed} { puts stderr $message; exit 1 }

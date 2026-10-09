@@ -17,8 +17,6 @@ class riscv_base_test extends uvm_test;
         super.build_phase(phase);
         if (!uvm_config_db#(virtual riscv_if)::get(this, "", "vif", vif))
             `uvm_fatal("NOVIF", "virtual riscv_if not set")
-        uvm_config_db#(virtual riscv_if)::set(this, "env.agent.driver",  "vif", vif);
-        uvm_config_db#(virtual riscv_if)::set(this, "env.agent.monitor", "vif", vif);
         uvm_config_db#(virtual riscv_if)::set(this, "env.scoreboard",    "vif", vif);
         env = riscv_env::type_id::create("env", this);
     endfunction

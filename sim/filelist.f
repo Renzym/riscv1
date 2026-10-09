@@ -1,4 +1,5 @@
 # RTL
+rtl/MemoryConfigPkg.sv
 rtl/Rv32iPkg.sv
 rtl/Alu.sv
 rtl/Regfile.sv
@@ -8,9 +9,6 @@ rtl/Riscv.sv
 # UVM testbench
 uvm_tb/riscv_pkg.sv
 uvm_tb/riscv_if.sv
-uvm_tb/riscv_clock_driver.sv
-uvm_tb/riscv_monitor.sv
-uvm_tb/riscv_agent.sv
 uvm_tb/riscv_scoreboard.sv
 uvm_tb/riscv_env.sv
 uvm_tb/riscv_base_test.sv

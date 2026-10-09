@@ -42,8 +42,7 @@ package Rv32iPkg;
     // Function7 field encodings (enum values in ALL_CAPS)
     typedef enum logic [6:0] {
         F7_BASE     = 7'b0000000,
-        F7_ALT      = 7'b0100000,  // For SUB/SRA
-        F7_SYSTEM   = 7'b0000001   // For ECALL/EBREAK
+        F7_ALT      = 7'b0100000   // For SUB/SRA
     } Funct7E;
 
     // R-type instruction format (struct in CamelCase)
@@ -118,6 +117,40 @@ package Rv32iPkg;
     // Helper function to get opcode from raw instruction bits
     function automatic OpcodeE GetOpcode(logic [31:0] RawInstr);
         GetOpcode = OpcodeE'(RawInstr[6:0]);
+    endfunction
+
+    // This core implements RV32I without traps/CSRs. Reject reserved encodings
+    // instead of letting them fall through to an arbitrary ALU operation.
+    function automatic logic IsSupportedInstruction(logic [31:0] instr);
+        logic [2:0] f3;
+        logic [6:0] f7;
+        f3 = instr[14:12];
+        f7 = instr[31:25];
+        IsSupportedInstruction = 1'b0;
+        case (GetOpcode(instr))
+            OP_MATH: begin
+                if (f3 == F3_ADD_SUB || f3 == F3_SR)
+                    IsSupportedInstruction = (f7 == F7_BASE || f7 == F7_ALT);
+                else
+                    IsSupportedInstruction = (f7 == F7_BASE);
+            end
+            OP_MATH_IMM: begin
+                case (f3)
+                    F3_SLL: IsSupportedInstruction = (f7 == F7_BASE);
+                    F3_SR:  IsSupportedInstruction = (f7 == F7_BASE || f7 == F7_ALT);
+                    default: IsSupportedInstruction = 1'b1;
+                endcase
+            end
+            OP_LOAD: IsSupportedInstruction = (f3 == F3_LB_SB || f3 == F3_LH_SH ||
+                                               f3 == F3_LW_SW || f3 == F3_LBU || f3 == F3_LHU);
+            OP_STORE: IsSupportedInstruction = (f3 == F3_LB_SB || f3 == F3_LH_SH || f3 == F3_LW_SW);
+            OP_BRANCH: IsSupportedInstruction = (f3 == F3_BEQ || f3 == F3_BNE ||
+                         f3 == F3_BLT || f3 == F3_BGE || f3 == F3_BLTU || f3 == F3_BGEU);
+            OP_JALR: IsSupportedInstruction = (f3 == 3'b000);
+            OP_JAL, OP_LUI, OP_AUIPC: IsSupportedInstruction = 1'b1;
+            OP_FENCE: IsSupportedInstruction = (f3 == 3'b000);
+            default: ;
+        endcase
     endfunction
 
     // Function to extract immediate value from instruction

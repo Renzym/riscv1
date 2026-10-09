@@ -1,11 +1,19 @@
-/* Minimal freestanding C example for generating Program.hex.
- * This is not the default scoreboard regression; use PROG=c_smoke explicitly.
- */
-void _start(void)
-{
-    volatile unsigned int *word = (volatile unsigned int *)0x40u;
+/* Exercises Data.hex initialization, BSS, stack, calls and Harvard rodata. */
+static volatile unsigned int initialized = 0x12345670u;
+static volatile unsigned int zeroed;
+static const unsigned int constants[] = {8u, 3u};
 
-    *word = 0x12345678u;
-    for (;;) {
-    }
+__attribute__((noinline)) static unsigned int add_on_stack(unsigned int value)
+{
+    volatile unsigned int local = value;
+    // Volatile BSS supplies a runtime index, preventing constant folding of
+    // the read-only table and exercising loads from Harvard data RAM.
+    return local + constants[zeroed];
+}
+
+int main(void)
+{
+    volatile unsigned int *signature = (volatile unsigned int *)0x40u;
+    *signature = zeroed == 0 && constants[zeroed + 1] == 3 ? add_on_stack(initialized) : 0;
+    return 0;
 }

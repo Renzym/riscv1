@@ -8,17 +8,6 @@ interface riscv_if (input logic clk);
 
     initial stimulus_done = 1'b0;
 
-    clocking drv_cb @(posedge clk);
-        output reset;
-    endclocking
-
-    clocking mon_cb @(posedge clk);
-        input reset;
-        input regs;
-    endclocking
-
-    modport drv_mp (clocking drv_cb, input clk);
-    modport mon_mp (clocking mon_cb, input clk);
 endinterface
 
 `endif

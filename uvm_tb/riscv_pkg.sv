@@ -1,5 +1,6 @@
 `ifndef RISCV_PKG_SV
 `define RISCV_PKG_SV
+`timescale 1ns/1ps
 
 package riscv_pkg;
 
@@ -8,9 +9,10 @@ package riscv_pkg;
         bit [31:0]   value;
     } reg_expect_t;
 
-    localparam int REGRESSION_N = 20;
+    localparam int REGRESSION_N = 21;
 
-    const reg_expect_t REGRESSION_EXPECTS[20] = '{
+    const reg_expect_t REGRESSION_EXPECTS[REGRESSION_N] = '{
+        '{0,  32'd0},
         '{1,  32'd5},
         '{2,  32'd10},
         '{3,  32'd15},
@@ -20,7 +22,7 @@ package riscv_pkg;
         '{7,  32'd36},
         '{8,  32'h12345000},
         '{9,  32'd48},
-        '{10, 32'd20},
+        '{10, 32'd33},
         '{14, 32'h000000ab},
         '{15, 32'h000000cd},
         '{16, 32'hffffffcd},
@@ -37,7 +39,7 @@ package riscv_pkg;
         return $sformatf("x%0d", addr);
     endfunction
 
-    const int unsigned DEFAULT_RUN_CYCLES = 300;
+    const int unsigned DEFAULT_RUN_CYCLES = 500;
 
 endpackage
 

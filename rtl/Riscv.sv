@@ -3,11 +3,15 @@
 import Rv32iPkg::*;
 module Riscv #(
     // Each memory contains 2**ADDR_BITS 32-bit words.
-    parameter int PROG_MEM_ADDR_BITS = 9,
-    parameter int DATA_MEM_ADDR_BITS = 9
+    parameter int PROG_MEM_ADDR_BITS = MemoryConfigPkg::PROG_MEM_ADDR_BITS,
+    parameter int DATA_MEM_ADDR_BITS = MemoryConfigPkg::DATA_MEM_ADDR_BITS,
+    parameter PROG_FILE = "Program.hex",
+    parameter DATA_FILE = "Data.hex",
+    parameter bit REPORT_FAULTS = 1'b1
 ) (
     input  logic                  Clk,
-    input  logic                  Reset
+    input  logic                  Reset,
+    output logic                  Fault
 );
     localparam PC_WIDTH      = 32;
     localparam INSTR_WIDTH   = 32;
@@ -51,22 +55,52 @@ module Riscv #(
     logic [DATA_WIDTH-1:0]  LoadWbData;
     logic [3:0]             StoreWrEnMask;
     logic [DATA_WIDTH-1:0]  DmemWrData;
+    logic InstrValid;
+    logic MemAccess;
+    logic AddrMisaligned;
+    logic AddrOutOfRange;
+    logic [PC_WIDTH-1:0] JumpTarget;
+
+    assign InstrValid = IsSupportedInstruction(Instr);
+    assign MemAccess = GetOpcode(Instr) == OP_LOAD || GetOpcode(Instr) == OP_STORE;
+    assign JumpTarget = {AluOut[PC_WIDTH-1:1], 1'b0};
+    assign AddrMisaligned = MemAccess &&
+        ((Instr[14:12] == F3_LW_SW && AluOut[1:0] != 0) ||
+         ((Instr[14:12] == F3_LH_SH || Instr[14:12] == F3_LHU) && AluOut[0]));
+    assign AddrOutOfRange = MemAccess && (AluOut >> (DATA_MEM_ADDR_BITS + WORD_BYTE_OFFSET_BITS)) != 0;
+    // No exception subsystem: halt and suppress all side effects on a fault.
+    assign Fault = !Reset && (!InstrValid || Pc[1:0] != 0 ||
+        (Pc >> (PROG_MEM_ADDR_BITS + WORD_BYTE_OFFSET_BITS)) != 0 ||
+        AddrMisaligned || AddrOutOfRange ||
+        ((JalPcSel || BrPcSel) && PcNxt[1:0] != 0));
+
+    initial begin
+        if (PROG_MEM_ADDR_BITS < 1 || PROG_MEM_ADDR_BITS > 30 ||
+            DATA_MEM_ADDR_BITS < 1 || DATA_MEM_ADDR_BITS > 30)
+            $fatal(1, "Memory word address widths must be in [1, 30]");
+    end
+    // synthesis translate_off
+    always @(posedge Clk) begin
+        if (!Reset && REPORT_FAULTS && Fault !== 1'b0)
+            $fatal(1, "Core fault: PC=%08h instruction=%08h address=%08h", Pc, Instr, AluOut);
+    end
+    // synthesis translate_on
 
     // Program Counter
     always_ff @(posedge Clk) begin
         if(Reset)   Pc <= 0;
-        else        Pc <= PcNxt;
+        else if (!Fault) Pc <= PcNxt;
     end
 
     assign PcPlus4 = Pc + 32'd4;
     assign BrPcOff = ImmExt;
-    assign PcNxt = JalPcSel ? AluOut : (Pc + (BrPcSel ? BrPcOff : 32'd4));
+    assign PcNxt = JalPcSel ? JumpTarget : (Pc + (BrPcSel ? BrPcOff : 32'd4));
     // Program memory
     RamSp
     #(
         .RAM_WIDTH (INSTR_WIDTH),
         .RAM_ADDR_BITS (PROG_MEM_ADDR_BITS),
-        .DATA_FILE 		 ("Program.hex"    )
+        .DATA_FILE       (PROG_FILE)
     ) ProgMemInst (
         .Clk    (Clk            ),
         .WrEn   ('0             ),
@@ -122,7 +156,7 @@ module Riscv #(
     #(
         .RAM_WIDTH (DATA_WIDTH),
         .RAM_ADDR_BITS (DATA_MEM_ADDR_BITS),
-        .DATA_FILE 		 ("Data.hex"       )
+        .DATA_FILE       (DATA_FILE)
     ) DataMemInst (
         .Clk             (Clk             ),
         .WrEn            (DmemWrEn        ),
@@ -196,8 +230,17 @@ module Riscv #(
     assign RegWrImm = ImmExt;
     assign Op2Sel   = ~(GetOpcode(Instr) == OP_MATH  | GetOpcode(Instr) == OP_BRANCH);
     assign DmemWr   =   GetOpcode(Instr) == OP_STORE;
-    assign DmemWrEn = DmemWr ? StoreWrEnMask : 4'b0000;
-    assign RegWrEn  = ~(GetOpcode(Instr) == OP_STORE | GetOpcode(Instr) == OP_BRANCH);
+    assign DmemWrEn = (!Reset && !Fault && DmemWr) ? StoreWrEnMask : 4'b0000;
+    always_comb begin
+        RegWrEn = 1'b0;
+        if (!Reset && !Fault) begin
+            case (GetOpcode(Instr))
+                OP_MATH, OP_MATH_IMM, OP_LOAD, OP_JAL, OP_JALR, OP_LUI, OP_AUIPC:
+                    RegWrEn = 1'b1;
+                default: ;
+            endcase
+        end
+    end
     assign RegWb    =  (GetOpcode(Instr) == OP_MATH  | GetOpcode(Instr) == OP_MATH_IMM | GetOpcode(Instr) == OP_AUIPC) ? SEL_REG_WB_ALU :
                       ((GetOpcode(Instr) == OP_LOAD) ? SEL_REG_WB_DMEM : 
                        (GetOpcode(Instr) == OP_LUI ? SEL_REG_WB_IMM : SEL_REG_WB_PC)); 
