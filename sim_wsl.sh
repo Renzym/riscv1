@@ -7,6 +7,6 @@ rm -rf obj_dir_wsl
 verilator --binary -Wall -Wno-fatal -Wno-DECLFILENAME \
   -CFLAGS "-std=c++20 -fcoroutines" \
   --top-module tb_riscv \
-  Rv32iPkg.sv Alu.sv RamSp.sv Regfile.sv Riscv.sv tb_riscv.sv \
+  rtl/Rv32iPkg.sv rtl/Alu.sv rtl/RamSp.sv rtl/Regfile.sv rtl/Riscv.sv tb_riscv.sv \
   -Mdir obj_dir_wsl
 ./obj_dir_wsl/Vtb_riscv

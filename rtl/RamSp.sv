@@ -9,7 +9,7 @@ module RamSp
 		parameter RAM_ADDR_BITS 	= 9,
 		parameter DATA_FILE 		= "data_file.txt",
 		parameter INIT_START_ADDR 	= 0,
-		parameter INIT_END_ADDR		= 10
+		parameter INIT_END_ADDR = (2**RAM_ADDR_BITS)-1
 	)
 	(
 	input  	logic					    Clk,
@@ -18,10 +18,11 @@ module RamSp
     input 	logic	[RAM_WIDTH-1:0] 	WrData,
 	output  logic	[RAM_WIDTH-1:0] 	RdData
 	);
-   logic [RAM_WIDTH-1:0] RamArray [(2**RAM_ADDR_BITS)-1:0];
+   localparam int RAM_DEPTH = 2**RAM_ADDR_BITS;
+   logic [RAM_WIDTH-1:0] RamArray [0:RAM_DEPTH-1];
 
    initial begin
-      for (int i = 0; i < (2**RAM_ADDR_BITS); i++)
+      for (int i = 0; i < RAM_DEPTH; i++)
          RamArray[i] = '0;
       $readmemh(DATA_FILE, RamArray, INIT_START_ADDR, INIT_END_ADDR);
    end

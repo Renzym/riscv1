@@ -34,12 +34,12 @@ $(ELF): $(SRC) linker.ld | check-toolchain
 $(BIN): $(ELF)
 	$(OBJCOPY) -O binary $< $@
 
-$(HEX): $(BIN)
-	python3 scripts/elf2memh.py $< -o $@ --sparse
+$(HEX): $(BIN) scripts/elf2memh.py
+	python3 scripts/elf2memh.py $< -o $@
 
 install-hex: $(HEX)
 	cp $(HEX) $(ROOT_HEX)
-	@test -f $(DATA_HEX) || printf '@000\n00000000\n' > $(DATA_HEX)
+	@test -f $(DATA_HEX) || printf '00000000\n' > $(DATA_HEX)
 
 dump: $(ELF)
 	$(OBJDUMP) -d $<

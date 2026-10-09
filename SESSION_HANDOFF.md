@@ -1,6 +1,6 @@
 # Session handoff: RISC-V UVM testbench + WSL toolchain
 
-**Last updated:** 2026-05-30
+**Last updated:** 2026-10-09
 **Repo:** this clone of `riscv1`; commands are relative to the repo root.
 **Tools used:** Verilator in WSL, Vivado 2021.2 xsim on Windows
 
@@ -136,14 +136,28 @@ programs/<name>.S or programs/<name>.c
 
 1. `Regfile.sv`: unpacked `logic [31:0] Regs [depth]`; x0 read via mux; no
    `assign Regs[0]`.
-2. `RamSp.sv`: `logic` RAM; zero-initializes all words before `$readmemh`
-   because xsim leaves sparse memory holes as X.
+2. `rtl/RamSp.sv`: `logic` RAM; zero-initializes all words before `$readmemh`
+   so trailing words omitted from a hex image remain zero. Depth and default
+   initialization bounds derive from `RAM_ADDR_BITS`.
 3. `Alu.sv`: xsim X-propagation fixes:
    - `Subtract` derives from raw `Opc`, `Funct3`, and `Funct7`.
    - `BrTaken` is only asserted when `Opc == OP_BRANCH`.
    - Shifter and `AluOut` mux use raw `Funct3` for math/math_imm.
-4. `Program.hex`: `@00c` must remain `04302023`, encoding `sw x3, 64(x0)`.
+4. `Program.hex`: line 4 (PC byte address `0x00c`) must remain `04302023`, encoding `sw x3, 64(x0)`.
    The older `02302023` stores at byte address 32 while the test loads from 64.
+5. All synthesizable RTL is in `rtl/`; simulator source lists use that path.
+6. Both hex images are dense words with no address markers. The generator
+   preserves zero words and pads a nonzero aligned base address with zero words.
+   Program RAM now uses word indexing. `Riscv` parameters `PROG_MEM_ADDR_BITS`
+   and `DATA_MEM_ADDR_BITS` default to 9 (512 words / 2 KiB each); the PC slice
+   and data word address slice derive from those widths. Keep `sw/linker.ld`
+   in sync when changing memory capacity.
+
+Verification after the RTL move and dense-image conversion: default software
+rebuild and hex comparison passed; the C smoke example built; Verilator and
+Vivado 2021.2 UVM regressions passed. Alternate memory address widths (program
+8, data 10) passed Verilator lint. Converter checks passed for zero words,
+partial-word padding, aligned base padding, and invalid base rejection.
 
 ## How to run
 

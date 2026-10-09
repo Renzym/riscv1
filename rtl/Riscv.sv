@@ -1,13 +1,18 @@
 `timescale 1ns/1ps
 
 import Rv32iPkg::*;
-module Riscv (
+module Riscv #(
+    // Each memory contains 2**ADDR_BITS 32-bit words.
+    parameter int PROG_MEM_ADDR_BITS = 9,
+    parameter int DATA_MEM_ADDR_BITS = 9
+) (
     input  logic                  Clk,
     input  logic                  Reset
 );
     localparam PC_WIDTH      = 32;
     localparam INSTR_WIDTH   = 32;
     localparam DATA_WIDTH    = 32;
+    localparam int WORD_BYTE_OFFSET_BITS = $clog2(DATA_WIDTH / 8);
     localparam SRC1_MSB      = 19;
     localparam SRC2_MSB      = 24;
     localparam DST_MSB       = 11;
@@ -41,7 +46,7 @@ module Riscv (
     logic [3:0]             DmemWrEn;
     logic                   BrTaken;
     InstructionT            InstrT;
-    logic [8:0]             DmemWordAddr;
+    logic [DATA_MEM_ADDR_BITS-1:0] DmemWordAddr;
     logic [1:0]             DmemByteOff;
     logic [DATA_WIDTH-1:0]  LoadWbData;
     logic [3:0]             StoreWrEnMask;
@@ -59,15 +64,13 @@ module Riscv (
     // Program memory
     RamSp
     #(
-        .RAM_WIDTH 		 (32               ),
-        .RAM_ADDR_BITS 	 (9                ),
-        .DATA_FILE 		 ("Program.hex"    ),
-        .INIT_START_ADDR (0                ),
-        .INIT_END_ADDR	 (511              )
+        .RAM_WIDTH (INSTR_WIDTH),
+        .RAM_ADDR_BITS (PROG_MEM_ADDR_BITS),
+        .DATA_FILE 		 ("Program.hex"    )
     ) ProgMemInst (
         .Clk    (Clk            ),
         .WrEn   ('0             ),
-        .Addr   (Pc[8:0]        ),
+        .Addr   (Pc[PROG_MEM_ADDR_BITS+WORD_BYTE_OFFSET_BITS-1:WORD_BYTE_OFFSET_BITS]        ),
         .WrData ('0             ),
         .RdData (Instr          )
     );
@@ -76,8 +79,8 @@ module Riscv (
 
     // Register file
     Regfile #(
-    .ADDR_WIDTH(5),
-    .DATA_WIDTH(32)
+    .ADDR_WIDTH(REGADDR_WIDTH),
+    .DATA_WIDTH(DATA_WIDTH)
     ) RegfileInst (
     .Clk        (Clk                          ),
     .Reset      (Reset                        ),
@@ -117,11 +120,9 @@ module Riscv (
     // Data memory
     RamSp
     #(
-        .RAM_WIDTH 		 (32               ),
-        .RAM_ADDR_BITS 	 (9                ),
-        .DATA_FILE 		 ("Data.hex"       ),
-        .INIT_START_ADDR (0                ),
-        .INIT_END_ADDR	 (255              )
+        .RAM_WIDTH (DATA_WIDTH),
+        .RAM_ADDR_BITS (DATA_MEM_ADDR_BITS),
+        .DATA_FILE 		 ("Data.hex"       )
     ) DataMemInst (
         .Clk             (Clk             ),
         .WrEn            (DmemWrEn        ),
@@ -130,7 +131,7 @@ module Riscv (
         .RdData          (DmemDout        )
     );
 
-    assign DmemWordAddr = AluOut[10:2];
+    assign DmemWordAddr = AluOut[DATA_MEM_ADDR_BITS+WORD_BYTE_OFFSET_BITS-1:WORD_BYTE_OFFSET_BITS];
     assign DmemByteOff  = AluOut[1:0];
 
     always_comb begin

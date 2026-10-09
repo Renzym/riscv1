@@ -1,9 +1,9 @@
 # RTL
-Rv32iPkg.sv
-Alu.sv
-Regfile.sv
-RamSp.sv
-Riscv.sv
+rtl/Rv32iPkg.sv
+rtl/Alu.sv
+rtl/Regfile.sv
+rtl/RamSp.sv
+rtl/Riscv.sv
 
 # UVM testbench
 uvm_tb/riscv_pkg.sv

@@ -9,8 +9,10 @@ make install-hex
 python3 scripts/verify_hex_format.py
 ```
 
-Data memory uses word-aligned byte addresses: the RAM word index is AluOut[10:2]
-and the byte lane is AluOut[1:0]. So LW/SW at offset 0x40 touch word index 16
+Both images contain one 32-bit word per line with no address markers.
+Program and data RAM use word indices derived from their address-width parameters
+in rtl/Riscv.sv (defaults: Pc[10:2] and AluOut[10:2]).
+The data byte lane is AluOut[1:0]. So LW/SW at offset 0x40 touch word index 16
 (bytes 0x40-0x43), matching the smoke test after the memory addressing fix.
 
 Section A (PC 0x00-0x28): original Stage-1 smoke - ADDI/ADD, SW/LW at 0x40,

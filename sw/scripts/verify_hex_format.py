@@ -10,7 +10,6 @@ ROOT = Path(__file__).resolve().parents[2]
 GOLDEN = ROOT / "Program.hex"
 GENERATED = ROOT / "sw" / "build" / "regression.hex"
 
-ADDR_RE = re.compile(r"^@[0-9a-fA-F]+$")
 WORD_RE = re.compile(r"^[0-9a-fA-F]{8}$")
 
 
@@ -19,29 +18,17 @@ def normalize(path: Path) -> list[str]:
 
 
 def verify_format(lines: list[str]) -> None:
-    if len(lines) % 2:
-        raise ValueError("expected address/word line pairs")
-
-    last_addr = -1
-    for idx in range(0, len(lines), 2):
-        addr_line = lines[idx]
-        word_line = lines[idx + 1]
-        if not ADDR_RE.match(addr_line):
-            raise ValueError(f"line {idx + 1}: invalid address marker {addr_line!r}")
+    if not lines:
+        raise ValueError("expected at least one 32-bit word")
+    for idx, word_line in enumerate(lines):
         if not WORD_RE.match(word_line):
-            raise ValueError(f"line {idx + 2}: invalid 32-bit word {word_line!r}")
-
-        addr = int(addr_line[1:], 16)
-        if addr % 4:
-            raise ValueError(f"line {idx + 1}: address 0x{addr:x} is not word aligned")
-        if addr <= last_addr:
-            raise ValueError(f"line {idx + 1}: addresses must increase monotonically")
-        last_addr = addr
+            raise ValueError(f"line {idx + 1}: invalid 32-bit word {word_line!r}")
 
 
 def main() -> int:
     golden = normalize(GOLDEN)
     verify_format(golden)
+    verify_format(normalize(ROOT / "Data.hex"))
 
     if GENERATED.exists():
         generated = normalize(GENERATED)

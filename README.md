@@ -104,8 +104,22 @@ The core uses Harvard memories: instruction fetches use `Program.hex`; loads and
 stores use `Data.hex`. Numeric addresses can overlap between the instruction and
 data memories because they are separate physical RAMs.
 
-`Program.hex` uses `@` addresses that match byte addresses seen by `Pc[8:0]`
-(`0`, `4`, `8`, ...), not dense word indices (`0`, `1`, `2`, ...).
+`Program.hex` and `Data.hex` contain one eight-digit 32-bit hex word per line,
+with no `@` markers. Line 1 loads word index 0 (byte address 0); line 2 loads
+word index 1 (byte address 4). Program fetch drops the two byte-offset PC bits,
+just as data RAM addressing drops the two byte-offset bits from the ALU result.
+Unspecified trailing RAM words are initialized to zero.
+
+Synthesizable SystemVerilog sources live in `rtl/`; `tb_riscv.sv` remains at
+the repo root and the UVM bench remains in `uvm_tb/`.
+
+`rtl/Riscv.sv` exposes `PROG_MEM_ADDR_BITS` and `DATA_MEM_ADDR_BITS`, both
+defaulting to 9. Each memory therefore contains 512 words (2 KiB). RAM depth,
+initialization bounds, and address slices derive from these parameters. The
+PC remains 32 bits for RV32I. The old program RAM used byte indexing and wrapped
+at 512 bytes; word indexing now makes all 2 KiB usable. Addresses beyond the
+configured memory capacity still wrap. If memory sizes change, also update the
+corresponding regions in `sw/linker.ld`.
 
 ## UVM Testbench Layout
 

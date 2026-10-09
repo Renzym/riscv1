@@ -4,7 +4,7 @@ cd $repo_dir
 set proj_dir [file join $repo_dir sim proj_tb]
 file mkdir $proj_dir
 create_project -force riscv_tb_xsim $proj_dir -part xc7a35tcpg236-1
-foreach f {Rv32iPkg.sv Alu.sv RamSp.sv Regfile.sv Riscv.sv tb_riscv.sv} {
+foreach f {rtl/Rv32iPkg.sv rtl/Alu.sv rtl/RamSp.sv rtl/Regfile.sv rtl/Riscv.sv tb_riscv.sv} {
     add_files [file join $repo_dir $f]
 }
 set_property top tb_riscv [get_filesets sim_1]
