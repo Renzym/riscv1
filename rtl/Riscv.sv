@@ -98,33 +98,33 @@ module Riscv #(
     // Program memory
     RamSp
     #(
-        .RAM_WIDTH (INSTR_WIDTH),
-        .RAM_ADDR_BITS (PROG_MEM_ADDR_BITS),
-        .DATA_FILE       (PROG_FILE)
+        .RAM_WIDTH      (INSTR_WIDTH),
+        .RAM_ADDR_BITS  (PROG_MEM_ADDR_BITS),
+        .DATA_FILE      (PROG_FILE)
     ) ProgMemInst (
-        .Clk    (Clk            ),
-        .WrEn   ('0             ),
-        .Addr   (Pc[PROG_MEM_ADDR_BITS+WORD_BYTE_OFFSET_BITS-1:WORD_BYTE_OFFSET_BITS]        ),
-        .WrData ('0             ),
-        .RdData (Instr          )
+        .Clk            (Clk            ),
+        .WrEn           ('0             ),
+        .Addr           (Pc[PROG_MEM_ADDR_BITS+WORD_BYTE_OFFSET_BITS-1:WORD_BYTE_OFFSET_BITS]),
+        .WrData         ('0             ),
+        .RdData         (Instr          )
     );
 
     assign InstrT = InstructionT'(Instr);
 
     // Register file
     Regfile #(
-    .ADDR_WIDTH(REGADDR_WIDTH),
-    .DATA_WIDTH(DATA_WIDTH)
+    .ADDR_WIDTH         (REGADDR_WIDTH),
+    .DATA_WIDTH         (DATA_WIDTH)
     ) RegfileInst (
-    .Clk        (Clk                          ),
-    .Reset      (Reset                        ),
-    .RdAddr1    (Instr[SRC1_MSB-:REGADDR_WIDTH]),
-    .RdAddr2    (Instr[SRC2_MSB-:REGADDR_WIDTH]),
-    .RdData1    (RegSrc1                       ),
-    .RdData2    (RegSrc2                       ),
-    .WrAddr     (Instr[DST_MSB-:REGADDR_WIDTH] ),
-    .WrData     (RegWrData                     ),
-    .WrEn       (RegWrEn)
+    .Clk                (Clk                           ),
+    .Reset              (Reset                         ),
+    .RdAddr1            (Instr[SRC1_MSB-:REGADDR_WIDTH]),
+    .RdAddr2            (Instr[SRC2_MSB-:REGADDR_WIDTH]),
+    .RdData1            (RegSrc1                       ),
+    .RdData2            (RegSrc2                       ),
+    .WrAddr             (Instr[DST_MSB-:REGADDR_WIDTH] ),
+    .WrData             (RegWrData                     ),
+    .WrEn               (RegWrEn                       )
     );
     // ALU
     assign AluOp1 = AuipcSel ? Pc     : RegSrc1;
@@ -133,11 +133,11 @@ module Riscv #(
         .DATA_WIDTH   (DATA_WIDTH  ),
         .INSTR_WIDTH  (INSTR_WIDTH )
     ) AluInst (
-        .AluOp1          (AluOp1),
-        .AluOp2          (AluOp2),
-        .AluOut          (AluOut),
-        .Instr           (Instr ),
-        .BrTaken         (BrTaken)
+        .AluOp1         (AluOp1),
+        .AluOp2         (AluOp2),
+        .AluOut         (AluOut),
+        .Instr          (Instr ),
+        .BrTaken        (BrTaken)
     );
 
     always_comb begin
