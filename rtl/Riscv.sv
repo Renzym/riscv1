@@ -17,9 +17,6 @@ module Riscv #(
     localparam INSTR_WIDTH   = 32;
     localparam DATA_WIDTH    = 32;
     localparam int WORD_BYTE_OFFSET_BITS = $clog2(DATA_WIDTH / 8);
-    localparam SRC1_MSB      = 19;
-    localparam SRC2_MSB      = 24;
-    localparam DST_MSB       = 11;
     localparam REGADDR_WIDTH = 5;
     localparam SEL_REG_WB_ALU  = 0;
     localparam SEL_REG_WB_DMEM = 1;
@@ -118,11 +115,11 @@ module Riscv #(
     ) RegfileInst (
     .Clk                (Clk                           ),
     .Reset              (Reset                         ),
-    .RdAddr1            (Instr[SRC1_MSB-:REGADDR_WIDTH]),
-    .RdAddr2            (Instr[SRC2_MSB-:REGADDR_WIDTH]),
+    .RdAddr1            (InstrT.RType.Rs1              ),
+    .RdAddr2            (InstrT.RType.Rs2              ),
     .RdData1            (RegSrc1                       ),
     .RdData2            (RegSrc2                       ),
-    .WrAddr             (Instr[DST_MSB-:REGADDR_WIDTH] ),
+    .WrAddr             (InstrT.RType.Rd               ),
     .WrData             (RegWrData                     ),
     .WrEn               (RegWrEn                       )
     );

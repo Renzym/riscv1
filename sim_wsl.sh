@@ -13,6 +13,7 @@ case "$top" in
   tb_fault_report) bench=sim/tb_fault_report.sv ;;
   *) echo "Unknown bench: $top" >&2; exit 1 ;;
 esac
+mkdir -p "obj_dir_wsl/$top"
 # WSL g++ (e.g. 12.x) needs -fcoroutines when Verilator enables timing (from # delays / timescale).
 verilator --binary -Wall -Wno-fatal -Wno-DECLFILENAME \
   -CFLAGS "-std=c++20 -fcoroutines" \
