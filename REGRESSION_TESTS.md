@@ -702,11 +702,12 @@ and unchanged data RAM. REPORT_FAULTS is disabled only in this bench so it can
 inspect faults; normal simulation terminates with a diagnostic.
 
 `tb_fault_report` deliberately executes an invalid instruction with normal
-reporting enabled. Its runner requires the core diagnostic and a nonzero
+reporting enabled. Its WSL runner requires the core diagnostic and a nonzero
 simulation exit status; an unrelated build/runtime failure is not a pass.
-The xsim directed runner also executes this expected-failure test.
+It can also be run with `.\run_xsim.ps1 tb_fault_report` from PowerShell;
+check `xsim.log` for the expected `Core fault:` diagnostic.
 
-The xsim directed runner tests the scoreboard separately with X and Z register
+`.\run_xsim.ps1 tb_scoreboard_checks` tests the scoreboard with X and Z register
 values against an expected zero, then with valid zero. This verifies four-state
 comparison in a simulator which preserves unknown values.
 
@@ -719,10 +720,10 @@ zeroes BSS, calls main, and loops when main returns.
 
 The Python checks validate little-endian conversion, zero words, partial-word
 padding, base padding, invalid bases, plain hex formatting, capacity rejection,
-and generated configuration consistency. The optional Vivado Tcl runners require
-a pass marker and reject error/fatal reports. For the PowerShell UVM launcher,
-check the pass marker and UVM report counts in `xsim.log`; a tool exit code alone
-does not establish that the test passed.
+and generated configuration consistency. For the PowerShell XSim launchers,
+check the pass marker and error/fatal reports in `xsim.log`; a tool exit code alone
+does not establish that the test passed. The fault-report bench requires its
+specific diagnostic instead of a pass marker.
 
 ## Memory configuration and C runtime
 

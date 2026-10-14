@@ -46,7 +46,8 @@ Program.hex.txt has been consolidated into that guide.
   run_uvm.ps1 executes the same commands using the tool paths directly;
   adjust the installation path near the top of the script if needed.
   Read xsim.log for the pass marker and UVM error/fatal counts.
-- The plain/directed Vivado runners validate their simulation logs automatically.
+- run_xsim.ps1 runs the plain/directed benches with standalone XSim tools.
+  Check xsim.log for each bench's pass marker or expected core-fault diagnostic.
 
 ## Software runtime
 
@@ -84,25 +85,27 @@ bash sim_wsl.sh tb_core_checks
 bash sim_wsl.sh tb_c_smoke
 bash sim_wsl.sh tb_fault_report
 python3 sw/scripts/test_memory_tools.py
-tclsh sim/test_sim_result.tcl
 ```
 
 ```powershell
 # Windows / Vivado 2021.2
 .\run_uvm.ps1
 .\run_sim.ps1
-vivado -mode batch -source sim\run_verilator_tb_xsim.tcl
-vivado -mode batch -source sim\run_directed_checks.tcl
+.\run_xsim.ps1
+.\run_xsim.ps1 tb_core_checks
+.\run_xsim.ps1 tb_c_smoke
+.\run_xsim.ps1 tb_scoreboard_checks
+.\run_xsim.ps1 tb_fault_report
 ```
 
 The directed xsim checks require the C images to have been built in WSL first.
 The C bench reads its own sw/build images without replacing the root regression.
-The fault-report bench is an expected-failure test: the runner requires the
-specific core diagnostic rather than accepting an unrelated failure.
+The fault-report bench is an expected-failure test: verify the specific core
+diagnostic rather than accepting an unrelated failure.
 
 ## Generated artifacts and cleanup
 
-Keep xsim.dir/, sim/proj_tb/, sim/proj_checks/, obj_dir/, obj_dir_wsl/,
+Keep xsim.dir/, obj_dir/, obj_dir_wsl/,
 sw/build/, .Xil/, __pycache__/, Vivado logs/journals and WDBs out of commits.
 Memory config outputs and the root regression image pair are checked in.
 
@@ -129,3 +132,4 @@ Simple standalone UVM launcher verified on 2026-10-14: all 21 registers matched,
 zero UVM errors/fatals, automatic finish at 5021 ns, and exit code 0.
 WSL verified on 2026-10-14: regression (33 self-checks / 21 registers), directed core checks, C startup smoke test, expected-fault diagnostics, nine Python memory-tool tests, and Tcl result-parser checks all passed. Generated build/simulation outputs and logs were cleared afterward.
 PowerShell launchers verified on 2026-10-14 from outside the repository: UVM matched all 21 registers with zero errors/fatals; WSL regression, directed checks, C startup and expected-fault tests passed. Invalid WSL bench returned exit 1; UVM preserved caller PATH and working directory. Generated outputs were cleared.
+Projectless plain/directed XSim launcher verified on 2026-10-14: tb_riscv, tb_core_checks, tb_c_smoke, tb_scoreboard_checks and the expected tb_fault_report diagnostic passed. Invalid bench names are rejected. XSim returned zero for the expected fatal, so verdicts require log inspection. Tcl project runners and helpers were removed; generated outputs were cleared.

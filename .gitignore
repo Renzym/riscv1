@@ -4,8 +4,6 @@ obj_dir_wsl/
 
 # Simulator outputs
 xsim.dir/
-sim/proj_tb/
-sim/proj_checks/
 *.jou
 *.log
 *.pb

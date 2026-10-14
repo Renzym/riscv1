@@ -16,6 +16,7 @@ Run these from PowerShell; each script locates the repository using its own path
 |--------|---------|
 | `run_sim.ps1 [bench]` | Runs `sim_wsl.sh` in WSL; defaults to the Verilator regression (`tb_riscv`). |
 | `run_uvm.ps1` | Compiles, elaborates, and runs the UVM bench with XSim. Set `$vivadoBin` to your installation. |
+| `run_xsim.ps1 [bench]` | Runs a plain or directed bench with XSim; defaults to `tb_riscv`. |
 | `cleanup_sim.ps1` | Removes simulator outputs; use `-WhatIf` to preview. |
 
 WSL users can run `bash sim_wsl.sh [bench]` directly. Software builds are cleaned
@@ -169,7 +170,7 @@ uvm_tb/
   tb_top_uvm.sv            DUT wrapper and run_test()
 sim/
   filelist.f
-  run_verilator_tb_xsim.tcl
+  rtl.f                   RTL and shared expectations for directed benches
 run_uvm.ps1                Windows standalone XSim launcher
 ```
 
@@ -235,7 +236,7 @@ xsim riscv_uvm -runall -testplusarg "RUN_CYCLES=600" -testplusarg "UVM_VERBOSITY
 After changing `config/memory.json`, regenerate configuration and rebuild the
 hex images as described above before running UVM.
 
-### Optional Windows checks with Vivado
+### Optional Windows checks with XSim
 
 Verilator covers the core regression, directed core checks, C startup, and fault
 diagnostics. The separate scoreboard test deliberately injects X/Z values and
@@ -244,14 +245,32 @@ installed Verilator 5.046 does not recognize `--fourstate`. Newer development
 versions document experimental four-state support, which must be validated
 against this scoreboard test before replacing XSim for that check.
 
-To run that test and repeat the directed checks in Vivado:
+Run the plain regression or select a directed bench from PowerShell:
 
-```cmd
-vivado -mode batch -source sim\run_directed_checks.tcl
+```powershell
+.\run_xsim.ps1
+.\run_xsim.ps1 tb_core_checks
+.\run_xsim.ps1 tb_c_smoke
+.\run_xsim.ps1 tb_scoreboard_checks
+.\run_xsim.ps1 tb_fault_report
 ```
 
-Build the C pair first with `cd sw && make PROG=c_smoke` in WSL. This optional
-runner uses a Vivado project and checks its logs for completion and failures.
+Build the C pair first with `cd sw && make PROG=c_smoke` in WSL. Set `$vivadoBin`
+in `run_xsim.ps1` for your installation. It uses the same compile, elaborate,
+and simulate sequence as the UVM launcher. For example, the scoreboard commands
+from the repository root, with the tools on PATH, are:
+
+```powershell
+xvlog --sv -L uvm -i uvm_tb -f sim/rtl.f sim/tb_scoreboard_checks.sv
+xelab -L uvm --timescale 1ns/1ps work.tb_scoreboard_checks -s tb_scoreboard_checks
+xsim tb_scoreboard_checks -runall
+```
+
+Check `xsim.log` for the bench's `PASS:` message and absence of unexpected errors.
+`tb_fault_report` is an expected-failure test: its success indication is the
+`Core fault:` diagnostic. The launcher propagates tool exit codes and does not
+interpret test results. Both memory configuration and hex images must be current
+before running these commands.
 
 ## Run Verilator In WSL
 
@@ -280,7 +299,6 @@ bash sim_wsl.sh tb_core_checks
 bash sim_wsl.sh tb_c_smoke
 bash sim_wsl.sh tb_fault_report
 python3 sw/scripts/test_memory_tools.py
-tclsh sim/test_sim_result.tcl
 ```
 
 The C bench builds its own image pair without replacing the root regression
@@ -303,8 +321,6 @@ are cleaned separately in WSL with `make -C sw clean`; root hex images are kept.
 The following outputs are generated and safe to delete after tools exit:
 
 - `xsim.dir/`
-- `sim/proj_tb/`
-- `sim/proj_checks/`
 - `obj_dir/`
 - `obj_dir_wsl/`
 - `sw/build/`
