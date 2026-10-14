@@ -1,4 +1,4 @@
-# Quick check: run original tb_riscv in xsim (same memory images as UVM flow).
+# Run the plain tb_riscv regression in XSim using the root memory images.
 set repo_dir [file normalize [file join [file dirname [info script]] ..]]
 source [file join $repo_dir sim check_sim_result.tcl]
 source [file join $repo_dir sim check_memory_config.tcl]

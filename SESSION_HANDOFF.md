@@ -43,7 +43,8 @@ Program.hex.txt has been consolidated into that guide.
   RAM boundaries and reset during execution. The xsim scoreboard unit check
   explicitly rejects X/Z samples against expected zero.
 - UVM runs three standalone commands (xvlog, xelab, xsim) from the repository root.
-  run_uvm.cmd executes the same commands; put the Vivado bin directory on PATH.
+  run_uvm.ps1 executes the same commands using the tool paths directly;
+  adjust the installation path near the top of the script if needed.
   Read xsim.log for the pass marker and UVM error/fatal counts.
 - The plain/directed Vivado runners validate their simulation logs automatically.
 
@@ -86,9 +87,10 @@ python3 sw/scripts/test_memory_tools.py
 tclsh sim/test_sim_result.tcl
 ```
 
-```cmd
-REM Windows / Vivado 2021.2
-run_uvm.cmd
+```powershell
+# Windows / Vivado 2021.2
+.\run_uvm.ps1
+.\run_sim.ps1
 vivado -mode batch -source sim\run_verilator_tb_xsim.tcl
 vivado -mode batch -source sim\run_directed_checks.tcl
 ```
@@ -126,3 +128,4 @@ core, C, four-state scoreboard and expected core diagnostic checks passed.
 Simple standalone UVM launcher verified on 2026-10-14: all 21 registers matched,
 zero UVM errors/fatals, automatic finish at 5021 ns, and exit code 0.
 WSL verified on 2026-10-14: regression (33 self-checks / 21 registers), directed core checks, C startup smoke test, expected-fault diagnostics, nine Python memory-tool tests, and Tcl result-parser checks all passed. Generated build/simulation outputs and logs were cleared afterward.
+PowerShell launchers verified on 2026-10-14 from outside the repository: UVM matched all 21 registers with zero errors/fatals; WSL regression, directed checks, C startup and expected-fault tests passed. Invalid WSL bench returned exit 1; UVM preserved caller PATH and working directory. Generated outputs were cleared.

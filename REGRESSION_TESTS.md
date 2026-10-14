@@ -25,8 +25,7 @@ retired instruction against a reference model or check the entire memory image.
 
 ## What the program exercises
 
-All executable instructions use assembly mnemonics. This guide consolidates
-the former Program.hex.txt notes. S-type store immediates are split between
+All executable instructions use assembly mnemonics. S-type store immediates are split between
 instruction bits [31:25] and [11:7]; the assembler handles that encoding.
 
 | Section | Behavior exercised | Result checked |
@@ -653,13 +652,13 @@ exists. Run it before `make clean` to retain that comparison.
 
 For UVM, run from the repo root on Windows:
 
-```cmd
-run_uvm.cmd
+```powershell
+.\run_uvm.ps1
 ```
 
 The launcher uses Vivado 2021.2; see [README.md](README.md#run-uvm-on-windows)
-for the installation path and direct invocation. The Tcl script copies both
-memory images into xsim's working directory before simulation.
+for the installation path and direct invocation. The simulator reads both
+memory images directly from the repository root.
 
 If a test fails, check that the default regression image is installed, inspect
 the reported register mismatch and x10 count, then use `make dump` in `sw/` to
@@ -720,8 +719,10 @@ zeroes BSS, calls main, and loops when main returns.
 
 The Python checks validate little-endian conversion, zero words, partial-word
 padding, base padding, invalid bases, plain hex formatting, capacity rejection,
-and generated configuration consistency. Vivado launch scripts require a pass
-marker and reject error/fatal reports; elapsed simulation time alone is not success.
+and generated configuration consistency. The optional Vivado Tcl runners require
+a pass marker and reject error/fatal reports. For the PowerShell UVM launcher,
+check the pass marker and UVM report counts in `xsim.log`; a tool exit code alone
+does not establish that the test passed.
 
 ## Memory configuration and C runtime
 

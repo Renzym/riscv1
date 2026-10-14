@@ -8,6 +8,19 @@ software build path for generating `Program.hex`.
 | Fast lint/sim | Verilator in WSL | `tb_riscv.sv` | Quick regression |
 | UVM | Vivado 2021.2 xsim | `tb_top_uvm` | Structured regression with scoreboard |
 
+## Scripts
+
+Run these from PowerShell; each script locates the repository using its own path.
+
+| Script | Purpose |
+|--------|---------|
+| `run_sim.ps1 [bench]` | Runs `sim_wsl.sh` in WSL; defaults to the Verilator regression (`tb_riscv`). |
+| `run_uvm.ps1` | Compiles, elaborates, and runs the UVM bench with XSim. Set `$vivadoBin` to your installation. |
+| `cleanup_sim.ps1` | Removes simulator outputs; use `-WhatIf` to preview. |
+
+WSL users can run `bash sim_wsl.sh [bench]` directly. Software builds are cleaned
+separately with `make -C sw clean`.
+
 ## Current test coverage
 
 See [Regression tests](REGRESSION_TESTS.md) for an assembly walkthrough of each
@@ -119,14 +132,13 @@ word index 1 (byte address 4). Program fetch drops the two byte-offset PC bits,
 just as data RAM addressing drops the two byte-offset bits from the ALU result.
 Unspecified trailing RAM words are initialized to zero.
 
-Synthesizable SystemVerilog sources live in `rtl/`; `tb_riscv.sv` remains at
-the repo root and the UVM bench remains in `uvm_tb/`.
+Synthesizable SystemVerilog sources live in `rtl/`; `tb_riscv.sv` is at
+the repo root and the UVM bench is in `uvm_tb/`.
 
 `rtl/Riscv.sv` exposes `PROG_MEM_ADDR_BITS` and `DATA_MEM_ADDR_BITS`, both
 defaulting to 9. Each memory therefore contains 512 words (2 KiB). RAM depth,
 initialization bounds, and address slices derive from these parameters. The
-PC remains 32 bits for RV32I. The old program RAM used byte indexing and wrapped
-at 512 bytes; word indexing now makes all 2 KiB usable. Addresses beyond the
+PC is 32 bits for RV32I. Word indexing makes all 2 KiB usable. Addresses beyond the
 configured memory capacity fault rather than wrap. Misaligned instruction
 targets and halfword/word data accesses also fault. The core halts and suppresses
 writes; normal simulation terminates with a diagnostic. This is a defined
@@ -158,7 +170,7 @@ uvm_tb/
 sim/
   filelist.f
   run_verilator_tb_xsim.tcl
-run_uvm.cmd                Windows standalone XSim launcher
+run_uvm.ps1                Windows standalone XSim launcher
 ```
 
 Default test: `riscv_regression_test`. It waits for the top-level stimulus to
@@ -173,7 +185,22 @@ Useful plusargs:
 
 ## Run UVM On Windows
 
-Open CMD and add your Vivado bin directory to PATH (adjust the version/path):
+From PowerShell, run the script directly:
+
+```powershell
+.\run_uvm.ps1
+```
+
+The script calls the tools in `C:\Xilinx\Vivado\2021.2\bin` directly. Adjust
+`$vivadoBin` in `run_uvm.ps1` for your installation. No PATH setup is needed.
+
+To run the three commands manually in PowerShell, first set PATH for the session:
+
+```powershell
+$env:Path = "C:\Xilinx\Vivado\2021.2\bin;$env:Path"
+```
+
+For manual use in CMD, the equivalent setup is:
 
 ```cmd
 set "PATH=C:\Xilinx\Vivado\2021.2\bin;%PATH%"
@@ -193,12 +220,6 @@ xsim riscv_uvm -runall
    The timescale supplies a default for the precompiled UVM library.
 3. `xsim` runs that snapshot. UVM calls `$finish` when the test completes.
 
-To execute the same commands with a script:
-
-```cmd
-run_uvm.cmd
-```
-
 The script changes to the repository root and stops if a tool returns an error.
 `Program.hex` and `Data.hex` are read directly from the root. Generated simulator
 files go into `xsim.dir/`, with tool logs in the root. Check the simulation output
@@ -214,7 +235,37 @@ xsim riscv_uvm -runall -testplusarg "RUN_CYCLES=600" -testplusarg "UVM_VERBOSITY
 After changing `config/memory.json`, regenerate configuration and rebuild the
 hex images as described above before running UVM.
 
+### Optional Windows checks with Vivado
+
+Verilator covers the core regression, directed core checks, C startup, and fault
+diagnostics. The separate scoreboard test deliberately injects X/Z values and
+needs four-state simulation; it is not part of the WSL Verilator flow. The
+installed Verilator 5.046 does not recognize `--fourstate`. Newer development
+versions document experimental four-state support, which must be validated
+against this scoreboard test before replacing XSim for that check.
+
+To run that test and repeat the directed checks in Vivado:
+
+```cmd
+vivado -mode batch -source sim\run_directed_checks.tcl
+```
+
+Build the C pair first with `cd sw && make PROG=c_smoke` in WSL. This optional
+runner uses a Vivado project and checks its logs for completion and failures.
+
 ## Run Verilator In WSL
+
+From PowerShell, the launcher starts WSL in the repository directory:
+
+```powershell
+.\run_sim.ps1
+.\run_sim.ps1 tb_core_checks
+.\run_sim.ps1 tb_c_smoke
+.\run_sim.ps1 tb_fault_report
+```
+
+The launcher uses WSL's `--cd` option to set the repository as its working directory.
+Both launchers can also be invoked by full path from another directory.
 
 From the repo root:
 
@@ -233,13 +284,7 @@ tclsh sim/test_sim_result.tcl
 ```
 
 The C bench builds its own image pair without replacing the root regression
-images. To run directed checks and the X/Z scoreboard check in Vivado:
-
-```cmd
-vivado -mode batch -source sim\run_directed_checks.tcl
-```
-
-Build the C pair first with `cd sw && make PROG=c_smoke` in WSL. The directed Vivado scripts require a completion marker and reject error/fatal reports.
+images. These WSL checks do not require Vivado.
 
 ## Disk Cleanup
 

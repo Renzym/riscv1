@@ -32,7 +32,7 @@ module tb_core_checks;
 
     initial begin
         reject(32'h00000000); // unknown opcode
-        reject(32'h050005b3); // former regression's reserved funct7
+        reject(32'h050005b3); // Reserved funct7 encoding for an OP instruction.
         reject(32'h022081b3); // MUL is outside RV32I
         reject(32'h02001193); // reserved SLLI upper immediate
         reject(32'h02005193); // reserved SRLI/SRAI upper immediate
