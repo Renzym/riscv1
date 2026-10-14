@@ -12,9 +12,11 @@ if (!(Test-Path -LiteralPath (Join-Path $repoRoot 'rtl/Riscv.sv') -PathType Leaf
 
 # Only known simulator outputs are eligible. Software builds are handled by
 # make -C sw clean; source files and the root hex images are never targets.
-$targets = @('obj_dir', 'obj_dir_wsl', 'sim/proj', 'sim/proj_tb', 'sim/proj_checks', '.Xil')
+$targets = @('obj_dir', 'obj_dir_wsl', 'xsim.dir', 'sim/proj_tb', 'sim/proj_checks', '.Xil')
 $rootLogs = Get-ChildItem -LiteralPath $repoRoot -File -Force | Where-Object {
-    $_.Name -eq 'vivado.log' -or $_.Name -eq 'vivado.jou' -or $_.Name -like 'vivado_*.backup.*'
+    $_.Name -eq 'vivado.log' -or $_.Name -eq 'vivado.jou' -or $_.Name -like 'vivado_*.backup.*' -or
+    $_.Name -like 'xsim_*.backup.*' -or
+    $_.Name -in @('xvlog.log', 'xvlog.pb', 'xelab.log', 'xelab.pb', 'xsim.log', 'xsim.jou', 'riscv_uvm.wdb')
 }
 $targets += @($rootLogs | ForEach-Object { $_.Name })
 

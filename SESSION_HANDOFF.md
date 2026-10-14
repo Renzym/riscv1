@@ -1,6 +1,6 @@
 # Session handoff: RV32I core, regression and software build
 
-**Last updated:** 2026-10-09
+**Last updated:** 2026-10-14
 **Repo:** this clone of riscv1; commands are relative to the repo root.
 **Tools:** Verilator in WSL; Vivado 2021.2 xsim on Windows.
 
@@ -42,9 +42,10 @@ Program.hex.txt has been consolidated into that guide.
 - The directed core bench checks faults and side-effect isolation, valid/invalid
   RAM boundaries and reset during execution. The xsim scoreboard unit check
   explicitly rejects X/Z samples against expected zero.
-- run_uvm.tcl and run_verilator_tb_xsim.tcl close xsim before reading its flushed
-  log, then require a pass marker and reject error/fatal reports. They never
-  invoke a second unbounded run all. Windows launchers propagate error status.
+- UVM runs three standalone commands (xvlog, xelab, xsim) from the repository root.
+  run_uvm.cmd executes the same commands; put the Vivado bin directory on PATH.
+  Read xsim.log for the pass marker and UVM error/fatal counts.
+- The plain/directed Vivado runners validate their simulation logs automatically.
 
 ## Software runtime
 
@@ -99,7 +100,7 @@ specific core diagnostic rather than accepting an unrelated failure.
 
 ## Generated artifacts and cleanup
 
-Keep sim/proj/, sim/proj_tb/, sim/proj_checks/, obj_dir/, obj_dir_wsl/,
+Keep xsim.dir/, sim/proj_tb/, sim/proj_checks/, obj_dir/, obj_dir_wsl/,
 sw/build/, .Xil/, __pycache__/, Vivado logs/journals and WDBs out of commits.
 Memory config outputs and the root regression image pair are checked in.
 
@@ -110,7 +111,7 @@ If tools retain open files, exit them before deleting their output directories.
 ```cmd
 taskkill /F /IM xsimk.exe
 taskkill /F /IM vivado.exe
-rd /s /q sim\proj
+rd /s /q xsim.dir
 ```
 
 ## Verification record
@@ -122,3 +123,6 @@ fault diagnostics passed. Nine Python memory-tool tests and Tcl result-parser
 checks passed; alternate program/data widths (8/10) pass lint.
 Vivado UVM and plain regressions passed with correct launcher status. Directed
 core, C, four-state scoreboard and expected core diagnostic checks passed.
+Simple standalone UVM launcher verified on 2026-10-14: all 21 registers matched,
+zero UVM errors/fatals, automatic finish at 5021 ns, and exit code 0.
+WSL verified on 2026-10-14: regression (33 self-checks / 21 registers), directed core checks, C startup smoke test, expected-fault diagnostics, nine Python memory-tool tests, and Tcl result-parser checks all passed. Generated build/simulation outputs and logs were cleared afterward.

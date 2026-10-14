@@ -1,18 +1,12 @@
 @echo off
-REM Run UVM regression with Vivado 2021.2 (adjust path if needed).
+REM Put the Vivado bin directory on PATH before running this script.
 setlocal
-set VIVADO_BIN=C:\Xilinx\Vivado\2021.2\bin\vivado.bat
-if not exist "%VIVADO_BIN%" (
-  echo Vivado not found at %VIVADO_BIN%
-  echo Set VIVADO_BIN to your vivado.bat and retry.
-  exit /b 1
-)
 cd /d "%~dp0"
-echo Repo: %CD%
-echo Ensure Program.hex and Data.hex exist in repo root.
-echo Optional WSL build: wsl bash -lc "cd sw && make install-hex"
-call "%VIVADO_BIN%" -mode batch -source sim/run_uvm.tcl
-set RESULT=%ERRORLEVEL%
-echo Exit code: %RESULT%
-pause
-exit /b %RESULT%
+
+REM Compile, elaborate, then simulate. Stop if a tool fails.
+call xvlog --sv -L uvm -i uvm_tb -f sim/filelist.f
+if errorlevel 1 exit /b %ERRORLEVEL%
+call xelab -L uvm --timescale 1ns/1ps work.tb_top_uvm -s riscv_uvm
+if errorlevel 1 exit /b %ERRORLEVEL%
+call xsim riscv_uvm -runall
+exit /b %ERRORLEVEL%

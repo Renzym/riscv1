@@ -141,7 +141,7 @@ make install-hex
 ```
 
 This generates `rtl/MemoryConfigPkg.sv`, `sw/linker.ld`, and `sw/memory_config.h`.
-Build and both simulation flows reject stale generated files. Per-instance RTL parameter
+The software build and Verilator flow reject stale generated files. Per-instance RTL parameter
 overrides remain useful for directed tests; software images must fit that instance.
 
 ## UVM Testbench Layout
@@ -157,9 +157,8 @@ uvm_tb/
   tb_top_uvm.sv            DUT wrapper and run_test()
 sim/
   filelist.f
-  run_uvm.tcl
   run_verilator_tb_xsim.tcl
-run_uvm.cmd                Windows Vivado launcher
+run_uvm.cmd                Windows standalone XSim launcher
 ```
 
 Default test: `riscv_regression_test`. It waits for the top-level stimulus to
@@ -174,32 +173,46 @@ Useful plusargs:
 
 ## Run UVM On Windows
 
-`run_uvm.cmd` assumes Vivado is installed at:
+Open CMD and add your Vivado bin directory to PATH (adjust the version/path):
 
 ```cmd
-C:\Xilinx\Vivado\2021.2\bin\vivado.bat
+set "PATH=C:\Xilinx\Vivado\2021.2\bin;%PATH%"
 ```
 
-If your Vivado install is elsewhere, edit the `VIVADO_BIN` variable in
-`run_uvm.cmd`.
+From the repository root, run these three commands in order:
 
-Run from the repo root:
+```cmd
+xvlog --sv -L uvm -i uvm_tb -f sim/filelist.f
+xelab -L uvm --timescale 1ns/1ps work.tb_top_uvm -s riscv_uvm
+xsim riscv_uvm -runall
+```
+
+1. `xvlog` compiles the SystemVerilog sources listed in `sim/filelist.f`.
+   `-L uvm` selects the supplied UVM library; `-i uvm_tb` finds the bench includes.
+2. `xelab` elaborates the top into a simulation snapshot named `riscv_uvm`.
+   The timescale supplies a default for the precompiled UVM library.
+3. `xsim` runs that snapshot. UVM calls `$finish` when the test completes.
+
+To execute the same commands with a script:
 
 ```cmd
 run_uvm.cmd
 ```
 
-Equivalent direct command when `vivado` is on `PATH`:
+The script changes to the repository root and stops if a tool returns an error.
+`Program.hex` and `Data.hex` are read directly from the root. Generated simulator
+files go into `xsim.dir/`, with tool logs in the root. Check the simulation output
+or `xsim.log` for `All expected registers matched` and zero UVM errors/fatals;
+the script does not parse test results.
+
+Optional simulation arguments can be added to the manual `xsim` command:
 
 ```cmd
-vivado -mode batch -source sim\run_uvm.tcl
+xsim riscv_uvm -runall -testplusarg "RUN_CYCLES=600" -testplusarg "UVM_VERBOSITY=UVM_HIGH"
 ```
 
-`sim/run_uvm.tcl` creates `sim/proj/`, copies `Program.hex` and `Data.hex` into
-the xsim working directory, launches the simulation, then closes xsim and the
-Vivado project. It intentionally does not call an extra `run all` after
-`launch_simulation`; doing so leaves the always-running clock alive and can grow
-waveform output until the disk fills.
+After changing `config/memory.json`, regenerate configuration and rebuild the
+hex images as described above before running UVM.
 
 ## Run Verilator In WSL
 
@@ -226,9 +239,7 @@ images. To run directed checks and the X/Z scoreboard check in Vivado:
 vivado -mode batch -source sim\run_directed_checks.tcl
 ```
 
-Build the C pair first with `cd sw && make PROG=c_smoke` in WSL. Vivado scripts
-require a completion marker and reject error/fatal reports; Windows launchers
-propagate failure status.
+Build the C pair first with `cd sw && make PROG=c_smoke` in WSL. The directed Vivado scripts require a completion marker and reject error/fatal reports.
 
 ## Disk Cleanup
 
@@ -239,14 +250,14 @@ Close the simulators, then run from PowerShell:
 .\cleanup_sim.ps1          # remove simulator outputs
 ```
 
-The script removes Verilator/Vivado output directories, `.Xil/`, and root Vivado
+The script removes Verilator/Vivado/XSim output directories, `.Xil/`, and root tool
 logs/journals/backups. It works independently of the current working directory,
 skips absent outputs, and refuses symbolic links or junctions. Software builds
 are cleaned separately in WSL with `make -C sw clean`; root hex images are kept.
 
 The following outputs are generated and safe to delete after tools exit:
 
-- `sim/proj/`
+- `xsim.dir/`
 - `sim/proj_tb/`
 - `sim/proj_checks/`
 - `obj_dir/`
@@ -254,13 +265,14 @@ The following outputs are generated and safe to delete after tools exit:
 - `sw/build/`
 - `.Xil/`
 - root `vivado.jou`, `vivado.log`, and `vivado_*.backup.*`
+- root `xvlog.log`, `xelab.log`, `xsim.log`, their journals/databases, and `riscv_uvm.wdb`
 
 If Vivado or xsim still holds files open:
 
 ```cmd
 taskkill /F /IM xsimk.exe
 taskkill /F /IM vivado.exe
-rd /s /q sim\proj
+rd /s /q xsim.dir
 ```
 
 See `SESSION_HANDOFF.md` for the current project state and verification record.
